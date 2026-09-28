@@ -396,7 +396,7 @@ Trip history, newest first. **Response `200`** — `{ items: [pool], page, limit
 
 **Response `503`** if the database is unreachable:
 ```json
-{ "status": "error", "database": "unreachable" }
+{ "statusCode": 503, "error": "Service Unavailable", "message": "Database unreachable", "requestId": "…" }
 ```
 Used by the Docker Compose health check.
 

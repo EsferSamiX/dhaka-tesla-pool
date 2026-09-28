@@ -34,6 +34,7 @@ services:
     build: ./backend
     environment:
       PORT: 4000
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
       DATABASE_URL: postgresql://${POSTGRES_USER:-tesla}:${POSTGRES_PASSWORD:-tesla}@postgres:5432/${POSTGRES_DB:-dhaka_tesla_pool}
     ports:
       - "${BACKEND_PORT:-4000}:4000"
