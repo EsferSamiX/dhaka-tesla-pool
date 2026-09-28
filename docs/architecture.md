@@ -106,7 +106,7 @@ flowchart LR
     A --> PG[(postgres<br/>container :5432)]
 ```
 
-`docker compose up` starts all three containers. The backend waits for the database health check, runs migrations and seeds the story cast before accepting requests.
+`docker compose up` starts the stack in order: `postgres` becomes healthy, a one-off `migrate` container applies migrations and seeds the story cast (idempotently) and exits, then `backend` starts, and `frontend` starts once the backend's health check passes.
 
 ---
 

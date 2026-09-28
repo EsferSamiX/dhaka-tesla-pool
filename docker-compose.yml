@@ -17,6 +17,19 @@ services:
       timeout: 3s
       retries: 10
 
+  # One-off job: applies migrations and seeds the story cast, then exits.
+  # Uses the backend's build stage, which still has the Prisma CLI.
+  migrate:
+    build:
+      context: ./backend
+      target: build
+    command: sh -c "npx prisma migrate deploy && node dist/database/seed.js"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tesla}:${POSTGRES_PASSWORD:-tesla}@postgres:5432/${POSTGRES_DB:-dhaka_tesla_pool}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   backend:
     build: ./backend
     environment:
@@ -25,8 +38,8 @@ services:
     ports:
       - "${BACKEND_PORT:-4000}:4000"
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/health"]
       interval: 5s
