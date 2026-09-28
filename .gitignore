@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+
+# builds
+dist/
+build/
+.next/
+out/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+
+# test coverage
+coverage/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# vercel
+.vercel
