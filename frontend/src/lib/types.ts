@@ -90,3 +90,44 @@ export interface FareEstimate {
   soloFarePaisa: number;
   pooledFarePaisa: number;
 }
+
+export type PoolStatus =
+  "MATCHED" | "DRIVER_ARRIVED" | "STARTED" | "COMPLETED" | "CANCELLED";
+
+/** A driver's trip. Unlike a passenger, the driver sees every member's fare. */
+export interface Pool {
+  id: string;
+  status: PoolStatus;
+  pickupZone: ZoneRef;
+  capacity: number;
+  occupiedSeats: number;
+  members: {
+    rideId: string;
+    passenger: { name: string };
+    destinationZone: ZoneRef;
+    pickupNote: string | null;
+    seats: number;
+    dropOffOrder: number;
+    /** Locked once the trip starts; before that, the fare if it started now. */
+    farePaisa: number;
+    fareLocked: boolean;
+  }[];
+  totalFarePaisa: number;
+  createdAt: string;
+  arrivedAt: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+}
+
+export interface WaitingRequest {
+  id: string;
+  passenger: { name: string };
+  pickupZone: ZoneRef;
+  destinationZone: ZoneRef;
+  pickupNote: string | null;
+  seats: number;
+  distanceKm: number;
+  estimatedFarePaisa: number;
+  waitingSince: string;
+}
