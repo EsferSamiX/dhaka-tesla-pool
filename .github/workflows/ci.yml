@@ -40,6 +40,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://tesla:tesla@localhost:5432/dhaka_tesla_pool
       DIRECT_URL: postgresql://tesla:tesla@localhost:5432/dhaka_tesla_pool
+      JWT_SECRET: ci-only-secret
 
     steps:
       - uses: actions/checkout@v7
