@@ -35,3 +35,58 @@ export interface Page<T> {
   limit: number;
   total: number;
 }
+
+export type RideStatus =
+  | "REQUESTED"
+  | "MATCHED"
+  | "DRIVER_ARRIVED"
+  | "STARTED"
+  | "COMPLETED"
+  | "CANCELLED";
+
+export interface Ride {
+  id: string;
+  status: RideStatus;
+  pickupZone: ZoneRef;
+  destinationZone: ZoneRef;
+  pickupNote: string | null;
+  seats: number;
+  distanceKm: number;
+  fare: {
+    estimatedPaisa: number;
+    /** What the passenger would pay if the trip started now. */
+    currentPaisa: number;
+    finalPaisa: number | null;
+    isLocked: boolean;
+    paidAt: string | null;
+  };
+  pool: {
+    id: string;
+    status: string;
+    driver: { name: string };
+    vehicle: { name: string; plateNumber: string };
+    dropOffOrder: number;
+    coRiders: { name: string; seats: number }[];
+    seatsLeft: number;
+  } | null;
+  cancelReason: string | null;
+  createdAt: string;
+}
+
+export interface TimelineEntry {
+  from: RideStatus | null;
+  to: RideStatus;
+  by: "PASSENGER" | "DRIVER" | "SYSTEM";
+  reason: string | null;
+  at: string;
+}
+
+export interface RideDetail extends Ride {
+  timeline: TimelineEntry[];
+}
+
+export interface FareEstimate {
+  distanceKm: number;
+  soloFarePaisa: number;
+  pooledFarePaisa: number;
+}
