@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master, pre-release, "release/**"]
+  push:
+    branches: [master, pre-release, "release/**"]
+
+# A newer push to the same branch or PR cancels the run in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: tesla
+          POSTGRES_PASSWORD: tesla
+          POSTGRES_DB: dhaka_tesla_pool
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tesla -d dhaka_tesla_pool"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://tesla:tesla@localhost:5432/dhaka_tesla_pool
+      DIRECT_URL: postgresql://tesla:tesla@localhost:5432/dhaka_tesla_pool
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # postinstall runs `prisma generate`
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npx prettier --check "src/**/*.ts" "test/**/*.ts"
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Apply migrations
+        run: npm run db:deploy
+
+      - name: Seed database
+        run: npm run db:seed
+
+      - name: E2E tests
+        run: npm run test:e2e
+
+      - name: Build
+        run: npm run build
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # Generates Next.js route types (e.g. LayoutProps) before checking.
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+
+  docker:
+    name: Docker images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate compose file
+        run: docker compose config --quiet
+
+      - name: Build images
+        run: docker compose build
