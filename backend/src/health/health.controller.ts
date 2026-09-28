@@ -1,3 +1,4 @@
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { Public } from '../common/decorators/auth.decorators.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -7,12 +8,14 @@ export interface HealthStatus {
   database: 'ok';
 }
 
+@ApiTags('health')
 @Public()
 @Controller('health')
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
   /** 200 when the API and database are both reachable, 503 otherwise. */
+  @ApiOperation({ summary: 'API and database health' })
   @Get()
   async check(): Promise<HealthStatus> {
     try {

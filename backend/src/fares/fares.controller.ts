@@ -1,3 +1,4 @@
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { Public } from '../common/decorators/auth.decorators.js';
 import { TripDto } from '../zones/dto/trip.dto.js';
@@ -18,11 +19,13 @@ export interface FareEstimate {
   };
 }
 
+@ApiTags('fares')
 @Public()
 @Controller('fares')
 export class FaresController {
   constructor(private readonly zones: ZonesService) {}
 
+  @ApiOperation({ summary: 'Solo and pooled fare for a trip, in paisa' })
   @Post('estimate')
   @HttpCode(HttpStatus.OK)
   async estimate(@Body() dto: TripDto): Promise<FareEstimate> {
