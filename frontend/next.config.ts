@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
   // Don't generate AGENTS.md / CLAUDE.md on `next dev`.
   agentRules: false,
 
+  // Hide the Next.js dev tools badge shown in the corner during `next dev`.
+  devIndicators: false,
+
   async rewrites() {
     return [
       {
