@@ -1,21 +1,9 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { taka } from "@/lib/format";
+import { formatWhen, taka } from "@/lib/format";
 import { STATUS_LABEL } from "@/lib/ride-status";
 import type { Ride } from "@/lib/types";
-
-const dateFormat = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "Asia/Dhaka",
-});
-
-export function formatWhen(iso: string): string {
-  return dateFormat.format(new Date(iso));
-}
 
 export function statusVariant(status: Ride["status"]) {
   if (status === "CANCELLED") return "destructive" as const;

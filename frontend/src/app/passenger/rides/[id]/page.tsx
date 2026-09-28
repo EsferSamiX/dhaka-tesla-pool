@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { use } from "react";
 import { ActiveRideCard } from "@/components/passenger/active-ride-card";
-import { formatWhen } from "@/components/passenger/ride-list";
 import { ErrorState } from "@/components/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRide } from "@/hooks/use-rides";
+import { formatWhen } from "@/lib/format";
 import { STATUS_LABEL } from "@/lib/ride-status";
 import type { TimelineEntry } from "@/lib/types";
 
