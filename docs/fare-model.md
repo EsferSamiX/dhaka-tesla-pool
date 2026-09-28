@@ -184,7 +184,7 @@ Each pool member stores a full breakdown, not just the final number, so any fare
 | `finalFarePaisa` | 6000 |
 | `fareLockedAt` | 2026-09-28 08:52:10 +06:00 |
 
-`finalFarePaisa` and `fareLockedAt` are empty until the trip starts. The exact table layout is defined in the [ERD](erd.md).
+`finalFarePaisa` and `fareLockedAt` are empty until the trip starts. `estimatedFarePaisa` is stored on the ride request, since it exists before the passenger joins a pool. The exact table layout is defined in the [ERD](erd.md).
 
 ---
 
