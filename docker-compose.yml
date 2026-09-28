@@ -33,6 +33,9 @@ services:
   backend:
     build: ./backend
     environment:
+      # This stack is for local use; production runs on Vercel. `development`
+      # allows the public dev JWT secret and a non-Secure cookie on http://localhost.
+      NODE_ENV: development
       PORT: 4000
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
       DATABASE_URL: postgresql://${POSTGRES_USER:-tesla}:${POSTGRES_PASSWORD:-tesla}@postgres:5432/${POSTGRES_DB:-dhaka_tesla_pool}
