@@ -6,6 +6,9 @@ import type { NextConfig } from "next";
 const apiUrl = process.env.API_URL ?? "http://localhost:4000";
 
 const nextConfig: NextConfig = {
+  // Self-contained server bundle for the Docker image.
+  output: "standalone",
+
   // Don't generate AGENTS.md / CLAUDE.md on `next dev`.
   agentRules: false,
 
