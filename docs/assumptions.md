@@ -4,8 +4,6 @@
 |---|---|
 | **Document** | Assumptions & Business Rules |
 | **Project** | Dhaka Tesla Pool — MVP |
-| **Status** | Approved for implementation |
-| **Last updated** | 2026-09-28 |
 | **Related** | [Fare Model](fare-model.md) · [Architecture](architecture.md) · [ERD](erd.md) · [API](api.md) |
 
 ---
