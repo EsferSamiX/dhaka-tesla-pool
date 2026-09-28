@@ -334,7 +334,7 @@ A global exception filter returns every error in one shape:
 | **Input validation** | Global validation pipe with whitelisting; unknown fields are rejected. |
 | **Authorization** | Role guards on every route; ownership checked in services. |
 | **HTTP headers** | Helmet sets secure defaults. |
-| **Rate limiting** | Sign-in and sign-up are rate-limited to slow brute-force attempts. |
+| **Rate limiting** | Sign-in: 5 attempts per minute per client IP **and** email; sign-up: 20 per minute. Keyed on email too because behind the Next.js rewrite every request reaches the API from the frontend's address, so an IP-only key would make all users share one limit. |
 | **Secrets** | Only in environment variables; `.env.example` holds placeholders. |
 | **Data exposure** | Password hashes are never returned; passengers never see other passengers' fares. |
 
@@ -362,3 +362,4 @@ A global exception filter returns every error in one shape:
 | Zone-level geography | Matching ignores exact addresses and real traffic. | Documented in [assumptions.md](assumptions.md); a routing service is a future improvement. |
 | Single region | Latency depends on the Vercel and Neon regions chosen. | Both set to the region closest to Dhaka available on the free tier. |
 | No refresh tokens | Users sign in again after one day. | Acceptable for an MVP. |
+| In-memory rate-limit counters | Each serverless instance counts separately, so the limit is per instance rather than global. | A shared store (e.g. Redis) when the API scales out. |
