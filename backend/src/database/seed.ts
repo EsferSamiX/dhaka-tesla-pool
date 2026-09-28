@@ -42,7 +42,12 @@ async function seed(db: PrismaClient): Promise<void> {
     const { id } = await db.user.upsert({
       where: { email: user.email },
       update: { name: user.name, role: user.role },
-      create: { name: user.name, email: user.email, role: user.role, passwordHash },
+      create: {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        passwordHash,
+      },
     });
     if (user.vehicle) {
       await db.vehicle.upsert({
