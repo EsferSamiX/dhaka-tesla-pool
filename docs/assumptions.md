@@ -144,12 +144,14 @@ flowchart TD
     C -- Yes --> D[Reserve seats in a transaction]
     D --> E[Status: MATCHED]
     C -- No --> F[Visible to online drivers]
-    F --> G[Driver accepts]
-    G --> H[New pool created]
+    F --> G{Driver accepts.<br/>Driver has an open pool?}
+    G -- No --> H[New pool created]
+    G -- Yes, passes M1 – M4 --> D
     H --> E
 ```
 
-When several pools qualify, the request joins the one **created earliest**, so older pools fill first.
+- **Automatic join:** when several pools qualify, the request joins the one **created earliest**, so older pools fill first.
+- **Driver accept:** a driver with no active pool creates a new one. A driver whose pool is still open can accept only requests that pass M1 – M4, and the request is added to that pool. This covers requests made *before* the pool existed, which the automatic join would never see.
 
 ### 4.5 Constraints
 
@@ -304,7 +306,7 @@ The seed data, tests and demo use the cast from the brief throughout.
 | A-03 | Pool members share the same pickup zone. | [4.1](#41-eligibility) |
 | A-04 | Maximum detour per passenger is 2 km. | [4.1](#41-eligibility) |
 | A-05 | Drop-offs are ordered nearest-first. | [4.2](#42-detour-calculation) |
-| A-06 | A request auto-joins the oldest open compatible pool. | [4.4](#44-matching-flow) |
+| A-06 | A request auto-joins the oldest open compatible pool; a driver can also add compatible waiting requests to their open pool. | [4.4](#44-matching-flow) |
 | A-07 | One active pool per driver; one active request per passenger. | [4.5](#45-constraints) |
 | A-08 | `MATCHED` covers both "accepted" and "joined a pool". | [5.3](#53-deviation-from-the-brief) |
 | A-09 | Every status change is recorded in an audit table. | [5.4](#54-audit-trail) |

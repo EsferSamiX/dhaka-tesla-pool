@@ -249,7 +249,7 @@ sequenceDiagram
     N->>DB: COMMIT (lock released)
     DB-->>S: returns row: occupied = 3
     S->>DB: occupied 3 + 1 > 3 ✗ → ROLLBACK
-    Note over S: 409 "No seats left"; request stays REQUESTED
+    Note over S: Not added to the pool; request stays REQUESTED<br/>for another driver (a driver accept would get 409)
 ```
 
 ```sql
@@ -330,7 +330,7 @@ A global exception filter returns every error in one shape:
 |---|---|
 | **Request logging** | Each request gets a `requestId`, logged with method, path, status, duration and user ID. The same ID is returned in error responses. |
 | **Business events** | Seat reservations, state transitions and fare locks are logged with ride and pool IDs. |
-| **Health check** | `GET /health` checks the database connection; used by Docker Compose. |
+| **Health check** | `GET /api/health` checks the database connection; used by Docker Compose. |
 | **Input validation** | Global validation pipe with whitelisting; unknown fields are rejected. |
 | **Authorization** | Role guards on every route; ownership checked in services. |
 | **HTTP headers** | Helmet sets secure defaults. |
