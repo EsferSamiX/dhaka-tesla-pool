@@ -203,7 +203,7 @@ Everyone who signs in. One role per account.
 | `created_at` | `timestamptz` | | `now()` | |
 | `updated_at` | `timestamptz` | | `now()` | |
 
-**Constraints:** `UNIQUE (email)` · `CHECK (role = 'DRIVER' OR is_online = false)`
+**Constraints:** `UNIQUE (email)` · `CHECK (email = lower(email))` · `CHECK (role = 'DRIVER' OR is_online = false)`
 
 ### 5.2 `vehicles`
 
@@ -287,7 +287,7 @@ One trip by one vehicle. Its status is the driver's view of the ride.
 | `cancelled_at` | `timestamptz` | ✓ | | |
 | `updated_at` | `timestamptz` | | `now()` | |
 
-**Constraints:** `CHECK (occupied_seats >= 0 AND occupied_seats <= capacity)` · one active pool per driver (see [§6](#6-integrity-rules))
+**Constraints:** `CHECK (capacity BETWEEN 1 AND 6)` · `CHECK (occupied_seats >= 0 AND occupied_seats <= capacity)` · one active pool per driver (see [§6](#6-integrity-rules))
 
 ### 5.7 `pool_members`
 
@@ -316,7 +316,7 @@ A ride request's seat in a pool. Holds the drop-off order and the full fare brea
 
 **Constraints:**
 - `CHECK (seats BETWEEN 1 AND 3)` · `CHECK (drop_off_order >= 1)`
-- All fare columns `>= 0` · `CHECK (final_fare_paisa <= subtotal_paisa)`
+- All fare columns `>= 0` · `CHECK (pool_discount_bps BETWEEN 0 AND 10000)` · `CHECK (final_fare_paisa <= subtotal_paisa)`
 - `CHECK ((final_fare_paisa IS NULL) = (fare_locked_at IS NULL))` — a fare is either fully locked or not at all
 - A request is an active member of at most one pool (see [§6](#6-integrity-rules))
 

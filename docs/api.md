@@ -92,7 +92,7 @@ Creates an account. Drivers register their vehicle in the same request.
   "email": "jashim@example.com",
   "password": "at-least-8-chars",
   "role": "DRIVER",
-  "vehicle": { "name": "Bullet", "plateNumber": "DHAKA-METRO-TA-11-2025", "capacity": 3 }
+  "vehicle": { "name": "Bullet", "plateNumber": "DM-TA-11-2025", "capacity": 3 }
 }
 ```
 
@@ -133,7 +133,7 @@ Clears the cookie. **Response `204`.**
   "email": "jashim@example.com",
   "role": "DRIVER",
   "isOnline": true,
-  "vehicle": { "id": "9c1a…", "name": "Bullet", "plateNumber": "DHAKA-METRO-TA-11-2025", "capacity": 3 }
+  "vehicle": { "id": "9c1a…", "name": "Bullet", "plateNumber": "DM-TA-11-2025", "capacity": 3 }
 }
 ```
 `isOnline` and `vehicle` are `null` for passengers.
@@ -206,7 +206,7 @@ Returned by every ride endpoint. A passenger sees their own fare only; co-riders
     "id": "p-7…",
     "status": "MATCHED",
     "driver": { "name": "Jashim" },
-    "vehicle": { "name": "Bullet", "plateNumber": "DHAKA-METRO-TA-11-2025" },
+    "vehicle": { "name": "Bullet", "plateNumber": "DM-TA-11-2025" },
     "dropOffOrder": 1,
     "coRiders": [ { "name": "Rafiq", "seats": 1 } ],
     "seatsLeft": 1
@@ -394,7 +394,11 @@ Trip history, newest first. **Response `200`** — `{ items: [pool], page, limit
 { "status": "ok", "database": "ok" }
 ```
 
-**Response `503`** if the database is unreachable. Used by the Docker Compose health check.
+**Response `503`** if the database is unreachable:
+```json
+{ "status": "error", "database": "unreachable" }
+```
+Used by the Docker Compose health check.
 
 ---
 
