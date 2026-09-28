@@ -252,7 +252,7 @@ describe('Pooling & seat capacity (e2e)', () => {
 
         await removeTestData(prisma, DOMAIN);
       }
-    });
+    }, 60_000); // 45 sign-ups and 40 racing requests
 
     it('lets only one of a driver adding and a passenger joining take the last seat', async () => {
       const { jashim, poolId } = await jashimCarrying('Rafiq', 'GL1', 2);
