@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { calculateFare } from '../fares/fare.calculator.js';
 import { Prisma } from '../generated/prisma/client.js';
+import { PoolingService } from '../pools/pooling.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ZonesService } from '../zones/zones.service.js';
 import { CreateRideDto, PaginationDto } from './dto/ride.dto.js';
@@ -33,6 +34,7 @@ export class RidesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly zones: ZonesService,
+    private readonly pooling: PoolingService,
   ) {}
 
   async request(passengerId: string, dto: CreateRideDto): Promise<RideView> {
@@ -47,8 +49,9 @@ export class RidesService {
       pooled: false,
     });
 
+    let id: string;
     try {
-      const { id } = await this.prisma.$transaction(async (tx) => {
+      ({ id } = await this.prisma.$transaction(async (tx) => {
         const ride = await tx.rideRequest.create({
           data: {
             passengerId,
@@ -69,8 +72,7 @@ export class RidesService {
           actorId: passengerId,
         });
         return ride;
-      });
-      return this.getOwn(passengerId, id);
+      }));
     } catch (error) {
       // The partial unique index allows one active ride per passenger, even
       // when two requests race.
@@ -82,6 +84,11 @@ export class RidesService {
       }
       throw error;
     }
+
+    // Take a seat in a compatible open pool if there is one; otherwise the
+    // ride waits for a driver to accept it.
+    await this.pooling.autoJoin(id);
+    return this.getOwn(passengerId, id);
   }
 
   async findActive(passengerId: string): Promise<RideView | null> {
@@ -209,6 +216,18 @@ export class RidesService {
       data: { occupiedSeats: { decrement: membership.seats } },
       select: { occupiedSeats: true },
     });
+    // Close the gap in the drop-off order left by this passenger.
+    const remaining = await tx.poolMember.findMany({
+      where: { poolId: membership.poolId, leftAt: null },
+      orderBy: { dropOffOrder: 'asc' },
+      select: { id: true },
+    });
+    for (const [index, member] of remaining.entries()) {
+      await tx.poolMember.update({
+        where: { id: member.id },
+        data: { dropOffOrder: index + 1 },
+      });
+    }
     if (pool.occupiedSeats === 0) {
       await tx.pool.update({
         where: { id: membership.poolId },

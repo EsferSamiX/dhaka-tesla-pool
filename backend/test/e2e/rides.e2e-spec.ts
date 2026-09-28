@@ -4,6 +4,7 @@ import request from 'supertest';
 import { AppModule } from '../../src/app.module.js';
 import { configureApp } from '../../src/app.setup.js';
 import { PrismaService } from '../../src/prisma/prisma.service.js';
+import { removeTestData } from './support.js';
 
 const DOMAIN = 'e2e-rides.test';
 const PASSWORD = 'correct-horse-9';
@@ -57,18 +58,9 @@ describe('Passenger rides (e2e)', () => {
     prisma = app.get(PrismaService);
   });
 
+  afterEach(() => removeTestData(prisma, DOMAIN));
+
   afterAll(async () => {
-    const mine = { email: { endsWith: `@${DOMAIN}` } };
-    await prisma.rideStatusHistory.deleteMany({
-      where: { rideRequest: { passenger: mine } },
-    });
-    await prisma.poolMember.deleteMany({
-      where: { rideRequest: { passenger: mine } },
-    });
-    await prisma.pool.deleteMany({ where: { driver: mine } });
-    await prisma.rideRequest.deleteMany({ where: { passenger: mine } });
-    await prisma.vehicle.deleteMany({ where: { driver: mine } });
-    await prisma.user.deleteMany({ where: mine });
     await app.close();
   });
 

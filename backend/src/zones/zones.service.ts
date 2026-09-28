@@ -63,4 +63,36 @@ export class ZonesService {
 
     return { pickupZoneId, destinationZoneId, distanceKm: distance.distanceKm };
   }
+
+  private distances?: Promise<Map<string, number>>;
+
+  /**
+   * All zone-to-zone distances, loaded once. The table is reference data
+   * (182 rows) that only changes with a new seed, so matching can look up
+   * any pair without a query per check.
+   */
+  async distanceFn(): Promise<(from: number, to: number) => number> {
+    this.distances ??= this.prisma.zoneDistance
+      .findMany()
+      .then(
+        (rows) =>
+          new Map(
+            rows.map((r) => [`${r.fromZoneId}:${r.toZoneId}`, r.distanceKm]),
+          ),
+      )
+      .catch((error: unknown) => {
+        this.distances = undefined; // retry on the next call
+        throw error;
+      });
+    const table = await this.distances;
+
+    return (from, to) => {
+      if (from === to) return 0;
+      const km = table.get(`${from}:${to}`);
+      if (km === undefined) {
+        throw new Error(`No distance between zones ${from} and ${to}`);
+      }
+      return km;
+    };
+  }
 }

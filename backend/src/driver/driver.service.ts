@@ -11,6 +11,7 @@ import {
   assertPoolTransition,
 } from '../pools/pool-state.js';
 import { POOL_INCLUDE, PoolView, toPoolView } from '../pools/pool.view.js';
+import { PoolingService } from '../pools/pooling.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PaginationDto } from '../rides/dto/ride.dto.js';
 import { recordStatusChange } from '../rides/ride-history.js';
@@ -44,7 +45,10 @@ const taka = (paisa: number) =>
 
 @Injectable()
 export class DriverService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pooling: PoolingService,
+  ) {}
 
   // ------------------------------------------------------------ availability
 
@@ -61,12 +65,34 @@ export class DriverService {
 
   async waitingRequests(driverId: string): Promise<WaitingRequest[]> {
     await this.assertOnline(driverId);
-    // Joining an existing pool is added with pooling; for now a driver on a
-    // trip sees nothing to accept.
-    if (await this.activePoolId(this.prisma, driverId)) return [];
+    const openPool = await this.prisma.pool.findFirst({
+      where: { driverId, status: { in: [...ACTIVE_POOL_STATUSES] } },
+      select: {
+        id: true,
+        status: true,
+        capacity: true,
+        occupiedSeats: true,
+        pickupZoneId: true,
+        members: {
+          where: { leftAt: null },
+          select: {
+            id: true,
+            distanceKm: true,
+            rideRequest: {
+              select: { destinationZoneId: true, createdAt: true },
+            },
+          },
+        },
+      },
+    });
+    // Once the driver has arrived the pool is closed to new passengers.
+    if (openPool && openPool.status !== 'MATCHED') return [];
 
     const rides = await this.prisma.rideRequest.findMany({
-      where: { status: 'REQUESTED' },
+      where: {
+        status: 'REQUESTED',
+        ...(openPool ? { pickupZoneId: openPool.pickupZoneId } : {}),
+      },
       orderBy: { createdAt: 'asc' },
       take: 50,
       include: {
@@ -75,7 +101,22 @@ export class DriverService {
         destinationZone: { select: { code: true, name: true } },
       },
     });
-    return rides.map((r) => ({
+    let visible = rides;
+    if (openPool) {
+      // With passengers already on board, show only rides that would fit.
+      const members = openPool.members.map((m) => ({
+        id: m.id,
+        destinationZoneId: m.rideRequest.destinationZoneId,
+        directKm: m.distanceKm,
+        requestedAt: m.rideRequest.createdAt,
+      }));
+      const fits = await Promise.all(
+        rides.map((r) => this.pooling.fits(openPool, r, members)),
+      );
+      visible = rides.filter((_, i) => fits[i]);
+    }
+
+    return visible.map((r) => ({
       id: r.id,
       passenger: r.passenger,
       pickupZone: r.pickupZone,
@@ -100,8 +141,27 @@ export class DriverService {
 
     try {
       const poolId = await this.prisma.$transaction(async (tx) => {
-        if (await this.activePoolId(tx, driverId)) {
-          throw new ConflictException('Finish your current trip first');
+        const activeId = await this.activePoolId(tx, driverId);
+        if (activeId) {
+          // Add the ride to the driver's open pool, if it fits.
+          const pool = await this.pooling.lockPool(tx, activeId);
+          if (pool.status !== 'MATCHED') {
+            throw new ConflictException(
+              'Your trip is under way; finish it first',
+            );
+          }
+          const result = await this.pooling.join(tx, pool, rideId, {
+            actorType: 'DRIVER',
+            actorId: driverId,
+          });
+          if (!result.joined) {
+            throw new ConflictException(
+              result.reason === 'ride no longer waiting'
+                ? 'This ride is no longer waiting'
+                : result.reason,
+            );
+          }
+          return pool.id;
         }
 
         // Lock the ride so two drivers can't take it at the same time.

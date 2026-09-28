@@ -4,6 +4,7 @@ import request from 'supertest';
 import { AppModule } from '../../src/app.module.js';
 import { configureApp } from '../../src/app.setup.js';
 import { PrismaService } from '../../src/prisma/prisma.service.js';
+import { removeTestData } from './support.js';
 
 const DOMAIN = 'e2e-driver.test';
 const PASSWORD = 'correct-horse-9';
@@ -76,18 +77,9 @@ describe('Driver flow (e2e)', () => {
     prisma = app.get(PrismaService);
   });
 
+  afterEach(() => removeTestData(prisma, DOMAIN));
+
   afterAll(async () => {
-    const mine = { email: { endsWith: `@${DOMAIN}` } };
-    await prisma.rideStatusHistory.deleteMany({
-      where: { rideRequest: { passenger: mine } },
-    });
-    await prisma.poolMember.deleteMany({
-      where: { rideRequest: { passenger: mine } },
-    });
-    await prisma.pool.deleteMany({ where: { driver: mine } });
-    await prisma.rideRequest.deleteMany({ where: { passenger: mine } });
-    await prisma.vehicle.deleteMany({ where: { driver: mine } });
-    await prisma.user.deleteMany({ where: mine });
     await app.close();
   });
 
@@ -196,26 +188,11 @@ describe('Driver flow (e2e)', () => {
       .post(`/api/driver/requests/${nusrat.rideId}/accept`)
       .expect(200);
 
-    // Seat Rafiq in the same pool directly; matching comes with pooling.
-    await prisma.$transaction([
-      prisma.poolMember.create({
-        data: {
-          poolId: pool.id,
-          rideRequestId: rafiq.rideId,
-          seats: 1,
-          dropOffOrder: 2,
-          distanceKm: 4,
-        },
-      }),
-      prisma.pool.update({
-        where: { id: pool.id },
-        data: { occupiedSeats: 2 },
-      }),
-      prisma.rideRequest.update({
-        where: { id: rafiq.rideId },
-        data: { status: 'MATCHED' },
-      }),
-    ]);
+    // Rafiq asked before the pool existed; Jashim adds him to it.
+    const added = await as(jashim)
+      .post(`/api/driver/requests/${rafiq.rideId}/accept`)
+      .expect(200);
+    expect(added.body).toMatchObject({ id: pool.id, occupiedSeats: 2 });
 
     await as(jashim).post('/api/driver/pool/arrive').expect(200);
     const started = await as(jashim).post('/api/driver/pool/start').expect(200);
@@ -265,18 +242,34 @@ describe('Driver flow (e2e)', () => {
     expect(seats).toBe(1);
   });
 
-  it('allows one active trip per driver', async () => {
+  it('keeps a driver to one trip: extra rides must fit the open pool', async () => {
     const jashim = await onlineDriver();
-    const first = await rideFor('Nusrat');
-    const second = await rideFor('Rafiq');
+    const nusrat = await rideFor('Nusrat', 'MOH');
+    const uttara = await rideFor('Rafiq', 'UTT');
+    const shirin = await rideFor('Shirin', 'MOH');
 
     await as(jashim)
-      .post(`/api/driver/requests/${first.rideId}/accept`)
+      .post(`/api/driver/requests/${nusrat.rideId}/accept`)
       .expect(200);
+
+    // Banani → Uttara would add a 4 km detour: not offered, not accepted.
+    const offered = await as(jashim).get('/api/driver/requests').expect(200);
+    const ids = offered.body.map((r: { id: string }) => r.id);
+    expect(ids).toContain(shirin.rideId);
+    expect(ids).not.toContain(uttara.rideId);
+
     const res = await as(jashim)
-      .post(`/api/driver/requests/${second.rideId}/accept`)
+      .post(`/api/driver/requests/${uttara.rideId}/accept`)
       .expect(409);
-    expect(res.body.message).toBe('Finish your current trip first');
+    expect(res.body.message).toBe('The detour would be too long for this pool');
+
+    // Once the driver has arrived, the pool is closed to anyone new.
+    await as(jashim).post('/api/driver/pool/arrive').expect(200);
+    await as(jashim).get('/api/driver/requests').expect(200).expect([]);
+    const late = await as(jashim)
+      .post(`/api/driver/requests/${shirin.rideId}/accept`)
+      .expect(409);
+    expect(late.body.message).toBe('Your trip is under way; finish it first');
   });
 
   it('sends passengers back to waiting when the driver cancels', async () => {
