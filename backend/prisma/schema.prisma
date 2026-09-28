@@ -1,0 +1,13 @@
+// Database schema. Design and reasoning: docs/erd.md
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+// The connection URL lives in prisma.config.ts (CLI) and PrismaService (runtime).
+datasource db {
+  provider = "postgresql"
+}

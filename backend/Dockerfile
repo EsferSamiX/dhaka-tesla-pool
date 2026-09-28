@@ -3,7 +3,9 @@
 # ---- deps: install all dependencies (cached until package files change)
 FROM node:24-alpine AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
+# prisma files are needed by the postinstall `prisma generate`
+COPY package.json package-lock.json prisma.config.ts ./
+COPY prisma ./prisma
 RUN npm ci
 
 # ---- build: compile TypeScript, then drop dev dependencies

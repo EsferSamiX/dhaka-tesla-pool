@@ -28,3 +28,6 @@ coverage/
 
 # vercel
 .vercel
+
+# generated Prisma client
+backend/src/generated/
