@@ -46,11 +46,19 @@ const NEXT: Partial<Record<PoolStatus, { action: TripAction; label: string }>> =
     STARTED: { action: "complete", label: "Finish trip" },
   };
 
-export function CurrentTrip({ pool }: { pool: Pool }) {
+export function CurrentTrip({
+  pool,
+  onEnd,
+}: {
+  pool: Pool;
+  /** For a completed trip: close the summary and go back to requests. */
+  onEnd?: () => void;
+}) {
   const step = useTripAction();
   const dropOff = useDropOff();
   const next = NEXT[pool.status];
   const started = pool.status === "STARTED";
+  const completed = pool.status === "COMPLETED";
   const onBoard = pool.members.filter((m) => !m.droppedAt);
   // Riders getting off in the same zone may leave in any order.
   const nextZone = onBoard[0]?.destinationZone.code;
@@ -144,10 +152,12 @@ export function CurrentTrip({ pool }: { pool: Pool }) {
 
         <div className="flex items-center justify-between rounded-lg bg-muted p-3">
           <span className="text-sm text-muted-foreground">
-            {started ? "Cash collected" : "Trip total if it started now"}
+            {started || completed
+              ? "Cash collected"
+              : "Trip total if it started now"}
           </span>
           <span className="text-xl font-semibold">
-            {started && (
+            {(started || completed) && (
               <span className="text-muted-foreground">
                 {taka(collected)} /{" "}
               </span>
@@ -159,6 +169,16 @@ export function CurrentTrip({ pool }: { pool: Pool }) {
         <FormError error={step.error ?? dropOff.error} />
       </CardContent>
 
+      {completed && onEnd && (
+        <CardFooter className="flex-col items-stretch gap-3">
+          <p className="text-sm text-muted-foreground">
+            Everyone has been dropped off and paid in cash.
+          </p>
+          <Button size="lg" onClick={onEnd}>
+            End trip
+          </Button>
+        </CardFooter>
+      )}
       {(next || canCancel) && (
         <CardFooter className="flex-col items-stretch gap-3">
           {started && (
