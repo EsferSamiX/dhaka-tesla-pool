@@ -11,7 +11,7 @@
   },
   "scripts": {
     "postinstall": "prisma generate",
-    "build": "nest build",
+    "build": "node scripts/migrate-on-vercel.mjs && nest build",
     "deploy": "nest deploy",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
