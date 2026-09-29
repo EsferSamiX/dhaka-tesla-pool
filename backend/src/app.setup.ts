@@ -31,7 +31,7 @@ function securityHeaders(req: Request, res: Response, next: NextFunction) {
  * App-wide HTTP configuration, shared by `main.ts` and the e2e tests so
  * tests exercise the same routes and behaviour as production.
  */
-export function configureApp(app: INestApplication): void {
+export async function configureApp(app: INestApplication): Promise<void> {
   app.setGlobalPrefix(API_PREFIX);
   app.use(securityHeaders);
   app.use(requestId);
@@ -46,5 +46,5 @@ export function configureApp(app: INestApplication): void {
   );
   app.useGlobalFilters(new AllExceptionsFilter());
   app.enableShutdownHooks();
-  setupDocs(app);
+  await setupDocs(app);
 }

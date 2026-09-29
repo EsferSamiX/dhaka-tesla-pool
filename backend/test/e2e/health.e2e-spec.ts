@@ -13,7 +13,7 @@ describe('Health (e2e)', () => {
     }).compile();
 
     app = moduleRef.createNestApplication();
-    configureApp(app);
+    await configureApp(app);
     await app.init();
   });
 

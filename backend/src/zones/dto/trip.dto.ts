@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsInt, IsString, Matches, Max, Min } from 'class-validator';
 import { MAX_SEATS } from '../../fares/fare.calculator.js';
@@ -17,6 +18,9 @@ export class TripDto {
   @Matches(/^[A-Z0-9]{3}$/, { message: 'destinationZone must be a zone code' })
   destinationZone: string;
 
+  // The generated docs metadata can't read an imported constant, so the
+  // maximum is repeated for Swagger here.
+  @ApiProperty({ minimum: 1, maximum: MAX_SEATS })
   @IsInt()
   @Min(1)
   @Max(MAX_SEATS)

@@ -13,7 +13,7 @@ describe('Security headers & API docs (e2e)', () => {
       imports: [AppModule],
     }).compile();
     app = moduleRef.createNestApplication();
-    configureApp(app);
+    await configureApp(app);
     await app.init();
   });
 

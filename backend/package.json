@@ -27,6 +27,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "docs:metadata": "tsx scripts/generate-swagger-metadata.ts && prettier --write src/metadata.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

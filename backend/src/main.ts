@@ -6,7 +6,7 @@ const DEFAULT_PORT = 4000;
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  configureApp(app);
+  await configureApp(app);
   await app.listen(process.env.PORT ?? DEFAULT_PORT);
 }
 // No top-level await: Vercel loads this file with require(), which cannot
