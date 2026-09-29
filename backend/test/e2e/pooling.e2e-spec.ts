@@ -127,7 +127,7 @@ describe('Pooling & seat capacity (e2e)', () => {
       const nusratView = await get(nusrat, '/api/rides/active').expect(200);
       expect(nusratView.body.fare.currentPaisa).toBe(6000);
       expect(nusratView.body.pool.coRiders).toEqual([
-        { name: 'Rafiq', seats: 1 },
+        { name: 'Rafiq', seats: 1, dropped: false },
       ]);
 
       const detail = await get(rafiq, `/api/rides/${ride.id}`).expect(200);

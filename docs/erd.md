@@ -142,6 +142,7 @@ erDiagram
         timestamptz paid_at
         timestamptz joined_at
         timestamptz left_at
+        timestamptz dropped_at
     }
 
     ride_status_history {
@@ -310,14 +311,17 @@ A ride request's seat in a pool. Holds the drop-off order and the full fare brea
 | `final_fare_paisa` | `integer` | ✓ | | What the passenger pays |
 | `fare_locked_at` | `timestamptz` | ✓ | | Equals the pool's `started_at` |
 | `payment_method` | `payment_method` | | `CASH` | |
-| `paid_at` | `timestamptz` | ✓ | | Set on `COMPLETED` |
+| `paid_at` | `timestamptz` | ✓ | | Set when the passenger is dropped off (their ride is `COMPLETED`) |
 | `joined_at` | `timestamptz` | | `now()` | |
 | `left_at` | `timestamptz` | ✓ | | Set if the passenger cancels or the driver cancels the pool |
+| `dropped_at` | `timestamptz` | ✓ | | Set when the driver drops this passenger off during the trip |
 
 **Constraints:**
 - `CHECK (seats BETWEEN 1 AND 3)` · `CHECK (drop_off_order >= 1)`
 - All fare columns `>= 0` · `CHECK (pool_discount_bps BETWEEN 0 AND 10000)` · `CHECK (final_fare_paisa <= subtotal_paisa)`
 - `CHECK ((final_fare_paisa IS NULL) = (fare_locked_at IS NULL))` — a fare is either fully locked or not at all
+- `CHECK (dropped_at IS NULL OR left_at IS NULL)` — someone who left the pool can't be dropped off
+- `CHECK (dropped_at IS NULL OR fare_locked_at IS NOT NULL)` — drop-offs happen only after the fare is locked at the start
 - A request is an active member of at most one pool (see [§6](#6-integrity-rules))
 
 A request can appear in more than one row over its lifetime: if a driver cancels a pool, the member row gets `left_at`, the request returns to `REQUESTED`, and it may later join another pool.

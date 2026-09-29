@@ -137,6 +137,7 @@ export default async () => {
               pool: { type: Object },
               arrive: { type: Object },
               start: { type: Object },
+              dropOff: { type: Object },
               complete: { type: Object },
               cancel: { type: Object },
               history: {},

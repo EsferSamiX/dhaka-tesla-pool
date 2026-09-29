@@ -38,6 +38,9 @@ interface LockedMember {
   distanceKm: number;
   rideRequestId: string;
   status: RideStatus;
+  destinationZoneId: number;
+  destinationName: string;
+  passengerName: string;
 }
 
 const taka = (paisa: number) =>
@@ -288,25 +291,36 @@ export class DriverService {
     });
   }
 
+  /**
+   * Drops off one passenger during the trip, in drop-off order. They pay
+   * their locked fare in cash and their ride completes; when nobody is left
+   * on board, the trip completes too.
+   */
+  dropOff(driverId: string, rideId: string): Promise<PoolView> {
+    return this.advance(driverId, 'DROP_OFF', async (tx, poolId, members) => {
+      const next = members[0];
+      const member = members.find((m) => m.rideRequestId === rideId);
+      if (!member) {
+        throw new NotFoundException('This passenger is not on board');
+      }
+      // Riders getting off in the same zone may leave in any order.
+      if (member.destinationZoneId !== next.destinationZoneId) {
+        throw new ConflictException(
+          `Drop off ${next.passengerName} at ${next.destinationName} first`,
+        );
+      }
+      const now = new Date();
+      await this.dropMembers(tx, poolId, [member], driverId, now);
+      if (members.length === 1) await this.completePool(tx, poolId, now);
+    });
+  }
+
+  /** Drops off everyone still on board and completes the trip. */
   complete(driverId: string): Promise<PoolView> {
     return this.advance(driverId, 'COMPLETED', async (tx, poolId, members) => {
       const now = new Date();
-      for (const m of members) {
-        const { finalFarePaisa } = await tx.poolMember.update({
-          where: { id: m.id },
-          data: { paidAt: now },
-          select: { finalFarePaisa: true },
-        });
-        await this.moveRides(tx, [m], 'COMPLETED', {
-          driverId,
-          poolId,
-          reason: `Paid in cash: ${taka(finalFarePaisa ?? 0)}`,
-        });
-      }
-      await tx.pool.update({
-        where: { id: poolId },
-        data: { status: 'COMPLETED', completedAt: now },
-      });
+      await this.dropMembers(tx, poolId, members, driverId, now);
+      await this.completePool(tx, poolId, now);
     });
   }
 
@@ -351,13 +365,14 @@ export class DriverService {
   // ------------------------------------------------------------ internals
 
   /**
-   * Moves the driver's active pool to `to`: locks the pool row, checks the
-   * pool lifecycle, then runs `apply` with the active members — all in one
-   * transaction, so the pool and its rides always change together.
+   * Moves the driver's active pool to `to` (or drops someone off during the
+   * trip): locks the pool row, checks the pool lifecycle, then runs `apply`
+   * with the passengers still on board — all in one transaction, so the pool
+   * and its rides always change together.
    */
   private async advance(
     driverId: string,
-    to: PoolStatus,
+    to: PoolStatus | 'DROP_OFF',
     apply: (tx: Tx, poolId: string, members: LockedMember[]) => Promise<void>,
   ): Promise<PoolView> {
     const poolId = await this.prisma.$transaction(async (tx) => {
@@ -366,17 +381,33 @@ export class DriverService {
 
       const [pool] = await tx.$queryRaw<{ status: PoolStatus }[]>`
         SELECT status FROM pools WHERE id = ${id}::uuid FOR UPDATE`;
-      assertPoolTransition(pool.status, to);
+      if (to === 'DROP_OFF') {
+        if (pool.status !== 'STARTED') {
+          throw new ConflictException(
+            'Start the trip before dropping anyone off',
+          );
+        }
+      } else {
+        assertPoolTransition(pool.status, to);
+      }
 
+      // Passengers still on board, in drop-off order.
       const members = await tx.poolMember.findMany({
-        where: { poolId: id, leftAt: null },
+        where: { poolId: id, leftAt: null, droppedAt: null },
         orderBy: { dropOffOrder: 'asc' },
         select: {
           id: true,
           seats: true,
           distanceKm: true,
           rideRequestId: true,
-          rideRequest: { select: { status: true } },
+          rideRequest: {
+            select: {
+              status: true,
+              destinationZoneId: true,
+              destinationZone: { select: { name: true } },
+              passenger: { select: { name: true } },
+            },
+          },
         },
       });
       await apply(
@@ -385,6 +416,9 @@ export class DriverService {
         members.map(({ rideRequest, ...m }) => ({
           ...m,
           status: rideRequest.status,
+          destinationZoneId: rideRequest.destinationZoneId,
+          destinationName: rideRequest.destinationZone.name,
+          passengerName: rideRequest.passenger.name,
         })),
       );
       return id;
@@ -420,6 +454,35 @@ export class DriverService {
         reason: ctx.reason,
       });
     }
+  }
+
+  /** Marks passengers as dropped off and paid, and completes their rides. */
+  private async dropMembers(
+    tx: Tx,
+    poolId: string,
+    members: LockedMember[],
+    driverId: string,
+    now: Date,
+  ): Promise<void> {
+    for (const m of members) {
+      const { finalFarePaisa } = await tx.poolMember.update({
+        where: { id: m.id },
+        data: { droppedAt: now, paidAt: now },
+        select: { finalFarePaisa: true },
+      });
+      await this.moveRides(tx, [m], 'COMPLETED', {
+        driverId,
+        poolId,
+        reason: `Dropped at ${m.destinationName} · paid in cash: ${taka(finalFarePaisa ?? 0)}`,
+      });
+    }
+  }
+
+  private async completePool(tx: Tx, poolId: string, now: Date) {
+    await tx.pool.update({
+      where: { id: poolId },
+      data: { status: 'COMPLETED', completedAt: now },
+    });
   }
 
   private async activePoolId(

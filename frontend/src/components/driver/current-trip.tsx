@@ -14,8 +14,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { SeatBoxes } from "@/components/trip/seat-boxes";
+import { TripRoute } from "@/components/trip/trip-route";
 import { Input } from "@/components/ui/input";
-import { TripAction, useCancelTrip, useTripAction } from "@/hooks/use-driver";
+import {
+  TripAction,
+  useCancelTrip,
+  useDropOff,
+  useTripAction,
+} from "@/hooks/use-driver";
 import { taka } from "@/lib/format";
 import type { Pool, PoolStatus } from "@/lib/types";
 
@@ -27,17 +34,27 @@ const TITLE: Record<PoolStatus, string> = {
   CANCELLED: "Trip cancelled",
 };
 
-/** The one next step for each stage of the trip. */
+/**
+ * The one next step before the trip starts. During the trip the driver drops
+ * passengers off one by one, and the last drop-off completes it.
+ */
 const NEXT: Partial<Record<PoolStatus, { action: TripAction; label: string }>> =
   {
     MATCHED: { action: "arrive", label: "I've arrived" },
     DRIVER_ARRIVED: { action: "start", label: "Start trip" },
-    STARTED: { action: "complete", label: "Complete trip" },
   };
 
 export function CurrentTrip({ pool }: { pool: Pool }) {
   const step = useTripAction();
+  const dropOff = useDropOff();
   const next = NEXT[pool.status];
+  const started = pool.status === "STARTED";
+  const onBoard = pool.members.filter((m) => !m.droppedAt);
+  // Riders getting off in the same zone may leave in any order.
+  const nextZone = onBoard[0]?.destinationZone.code;
+  const collected = pool.members
+    .filter((m) => m.droppedAt)
+    .reduce((sum, m) => sum + m.farePaisa, 0);
   const canCancel =
     pool.status === "MATCHED" || pool.status === "DRIVER_ARRIVED";
   const riders = pool.members.length;
@@ -53,16 +70,23 @@ export function CurrentTrip({ pool }: { pool: Pool }) {
     <Card>
       <CardHeader>
         <CardTitle>{TITLE[pool.status]}</CardTitle>
-        <CardDescription>
-          Pickup in {pool.pickupZone.name} · {pool.occupiedSeats} of{" "}
-          {pool.capacity} seats taken
-        </CardDescription>
+        <CardDescription>Pickup in {pool.pickupZone.name}</CardDescription>
         <CardAction>
           <Badge variant={shared ? "default" : "secondary"}>{badge}</Badge>
         </CardAction>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
+        <SeatBoxes
+          capacity={pool.capacity}
+          holders={pool.members.map((m) => ({
+            name: m.passenger.name,
+            seats: m.seats,
+            dropped: !!m.droppedAt,
+          }))}
+        />
+        <TripRoute route={pool.route} />
+
         <ol className="divide-y rounded-lg border">
           {pool.members.map((m) => (
             <li key={m.rideId} className="flex items-start gap-3 p-3">
@@ -86,45 +110,67 @@ export function CurrentTrip({ pool }: { pool: Pool }) {
                   <p className="text-sm">&ldquo;{m.pickupNote}&rdquo;</p>
                 )}
               </div>
-              <p className="flex items-center gap-1 text-sm font-medium">
-                {m.fareLocked && (
-                  <Lock
-                    className="size-3.5 text-muted-foreground"
-                    aria-label="Locked"
-                  />
+              <div className="flex flex-col items-end gap-2">
+                <p className="flex items-center gap-1 text-sm font-medium">
+                  {m.fareLocked && (
+                    <Lock
+                      className="size-3.5 text-muted-foreground"
+                      aria-label="Locked"
+                    />
+                  )}
+                  {taka(m.farePaisa)}
+                </p>
+                {m.droppedAt ? (
+                  <Badge variant="secondary">Dropped · paid</Badge>
+                ) : (
+                  started && (
+                    <Button
+                      size="sm"
+                      disabled={
+                        dropOff.isPending || m.destinationZone.code !== nextZone
+                      }
+                      onClick={() => dropOff.mutate(m.rideId)}
+                    >
+                      Drop off
+                    </Button>
+                  )
                 )}
-                {taka(m.farePaisa)}
-              </p>
+              </div>
             </li>
           ))}
         </ol>
 
         <div className="flex items-center justify-between rounded-lg bg-muted p-3">
           <span className="text-sm text-muted-foreground">
-            {pool.status === "STARTED"
-              ? "You'll collect (cash)"
-              : "Trip total if it started now"}
+            {started ? "Cash collected" : "Trip total if it started now"}
           </span>
           <span className="text-xl font-semibold">
+            {started && (
+              <span className="text-muted-foreground">
+                {taka(collected)} /{" "}
+              </span>
+            )}
             {taka(pool.totalFarePaisa)}
           </span>
         </div>
 
-        <FormError error={step.error} />
+        <FormError error={step.error ?? dropOff.error} />
       </CardContent>
 
-      <CardFooter className="flex-col items-stretch gap-3">
-        {next && (
-          <Button
-            size="lg"
-            disabled={step.isPending}
-            onClick={() => step.mutate(next.action)}
-          >
-            {step.isPending ? "Updating…" : next.label}
-          </Button>
-        )}
-        {canCancel && <CancelTrip />}
-      </CardFooter>
+      {(next || canCancel) && (
+        <CardFooter className="flex-col items-stretch gap-3">
+          {next && (
+            <Button
+              size="lg"
+              disabled={step.isPending}
+              onClick={() => step.mutate(next.action)}
+            >
+              {step.isPending ? "Updating…" : next.label}
+            </Button>
+          )}
+          {canCancel && <CancelTrip />}
+        </CardFooter>
+      )}
     </Card>
   );
 }

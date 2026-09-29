@@ -195,6 +195,8 @@ model PoolMember {
   paidAt              DateTime?     @map("paid_at") @db.Timestamptz(6)
   joinedAt            DateTime      @default(now()) @map("joined_at") @db.Timestamptz(6)
   leftAt              DateTime?     @map("left_at") @db.Timestamptz(6)
+  // Set when the driver drops this passenger off during the trip.
+  droppedAt           DateTime?     @map("dropped_at") @db.Timestamptz(6)
 
   pool        Pool        @relation(fields: [poolId], references: [id], onDelete: Restrict)
   rideRequest RideRequest @relation(fields: [rideRequestId], references: [id], onDelete: Restrict)

@@ -64,13 +64,15 @@ Every assumption made along the way is written down in [docs/assumptions.md](doc
 - Pick pickup and destination zones and seats (1–3), and see three prices before booking: alone, shared by two (20% off) and full Tesla (30% off).
 - New requests **automatically join** a compatible open pool (same pickup, seats free, detour ≤ 2 km).
 - Live ride page (polled every 3 s): progress steps, driver and plate, co-riders by first name, drop-off order, and the projected fare, which is locked when the trip starts.
+- **Seat boxes:** one box per seat in the Tesla, the same for everyone in the pool: filled when booked, empty when free, freed again when someone gets off.
+- **Trip line:** pickup, the areas passed on the way (e.g. Banani → Kakoli → Mohakhali) and every drop-off, with the Tesla drawn where it is now.
 - Cancel before the trip starts. History, ride details with a timeline, and "Same trip again".
 
 **Driver**
 - Go online/offline; see waiting requests only while online.
 - Accept a request (starts a pool) or add a fitting request to the open pool.
-- Arrive → start (fares lock) → complete (cash collected), or cancel before the start.
-- Current trip view with seats taken, drop-off order, each rider's fare and the total to collect. Trip history.
+- Arrive → start (fares lock) → **drop passengers off one by one** in drop-off order (each pays cash and their ride completes; the last drop-off ends the trip), or cancel before the start.
+- Current trip view with seat boxes, the trip line, each rider's fare, and cash collected so far. Trip history.
 
 **Platform**
 - Seat capacity enforced by a row lock **and** a database `CHECK` constraint.
@@ -85,11 +87,11 @@ Every assumption made along the way is written down in [docs/assumptions.md](doc
 |---|---|
 | ![Home page](docs/images/home.png) | ![Nusrat requesting Banani to Mohakhali](docs/images/passenger-request.png) |
 
-| Nusrat, pooled with Rafiq | Jashim's trip in progress (fares locked) |
+| Nusrat, pooled with Rafiq: seat boxes and trip line | Jashim has dropped Nusrat off; Rafiq is next |
 |---|---|
-| ![Nusrat's ride matched with Rafiq](docs/images/passenger-pooled.png) | ![Jashim's current trip: Nusrat ৳60, Rafiq ৳72, total ৳132](docs/images/driver-trip.png) |
+| ![Nusrat's ride matched with Rafiq](docs/images/passenger-pooled.png) | ![Jashim's trip after dropping Nusrat: ৳60 of ৳132 collected](docs/images/driver-trip.png) |
 
-| Driver sees a waiting request | Completed ride with timeline |
+| Driver sees a waiting request | Nusrat's completed ride with timeline |
 |---|---|
 | ![Jashim's waiting requests](docs/images/driver-requests.png) | ![Nusrat's completed ride](docs/images/passenger-completed.png) |
 
@@ -117,7 +119,7 @@ The story cast is seeded in every environment. The password is `tesla1234` for a
 > 2. **Nusrat** → Banani → Mohakhali, 1 seat → Request ride.
 > 3. **Jashim** → Accept Nusrat.
 > 4. **Rafiq** → Banani → Gulshan 1 → he joins Bullet automatically. Both now see the 20% shared fare (৳60 and ৳72).
-> 5. **Jashim** → I've arrived → Start trip (fares lock) → Complete trip (৳132 cash).
+> 5. **Jashim** → I've arrived → Start trip (fares lock) → **Drop off** Nusrat at Mohakhali (৳60) → **Drop off** Rafiq at Gulshan 1 (৳72). The trip ends with ৳132 cash.
 >
 > Add **Shirin** before the start to fill Bullet: everyone's discount rises to 30%.
 
@@ -185,7 +187,7 @@ erDiagram
 | `zones`, `zone_distances` | 14 Dhaka zones and a symmetric km table (no map API) |
 | `ride_requests` | A passenger's trip request, its status and the solo fare estimate |
 | `pools` | One shared trip: driver, vehicle, pickup zone, `occupied_seats ≤ capacity` |
-| `pool_members` | Who is in a pool, drop-off order, and the full locked fare breakdown |
+| `pool_members` | Who is in a pool, drop-off order, when they were dropped off, and the full locked fare breakdown |
 | `ride_status_history` | Every state change, who made it, and why |
 
 Money is stored as **integer paisa**, and percentages as basis points. Full column list, constraints, indexes and a worked example: [docs/erd.md](docs/erd.md).
@@ -348,14 +350,14 @@ cd ../frontend
 npm run lint && npm run typecheck && npm run build
 ```
 
-**62 unit and 55 e2e tests.** The e2e tests run through the real HTTP stack and database, and clean up after themselves. The behaviours the brief asks for:
+**67 unit and 58 e2e tests.** The e2e tests run through the real HTTP stack and database, and clean up after themselves. The behaviours the brief asks for:
 
 | Required behaviour | Where it's tested |
 |---|---|
 | Bullet's capacity can never be exceeded | `pooling.e2e-spec.ts`: never more than 3; the DB `CHECK` rejects a direct overbooking |
 | Two concurrent requests can't corrupt capacity | `pooling.e2e-spec.ts`: Nusrat vs Shirin for the last seat; 8 passengers × 1 seat × 5 rounds; driver-add vs passenger-join. `driver.e2e-spec.ts`: two drivers accepting one ride |
 | Nusrat's and Rafiq's pooled fares | `fare.calculator.spec.ts` (F1–F12), `fares.e2e-spec.ts`, `driver.e2e-spec.ts`: locks ৳60 and ৳72 at the start |
-| Invalid state transitions are rejected | `ride-state.spec.ts` (allowed and forbidden moves, final states), plus cancel after start and arrive/start out of order in the e2e tests |
+| Invalid state transitions are rejected | `ride-state.spec.ts` (allowed and forbidden moves, final states), plus cancel after start, arrive/start out of order, and drop-offs before the start or out of order in the e2e tests |
 | Users can't modify another user's ride | `rides.e2e-spec.ts`: another passenger gets 403 on view and cancel, and the ride is unchanged; role checks on passenger and driver routes |
 | Cancellation rules hold | `rides.e2e-spec.ts`: cancel frees the seat, empties the pool, refuses after the start; `driver.e2e-spec.ts`: driver cancel sends riders back to waiting |
 
@@ -378,7 +380,8 @@ REST, JSON, all under `/api`. Auth is the `token` httpOnly cookie. Interactive d
 | `GET` | `/driver/requests` | Driver | Waiting requests this driver can take |
 | `POST` | `/driver/requests/:id/accept` | Driver | Start a pool or add to the open one |
 | `GET` | `/driver/pool` · `/driver/pools` | Driver | Current trip, trip history |
-| `POST` | `/driver/pool/arrive` · `start` · `complete` · `cancel` | Driver | Move the trip along |
+| `POST` | `/driver/pool/arrive` · `start` · `cancel` | Driver | Move the trip along |
+| `POST` | `/driver/pool/drop-off/:rideId` · `complete` | Driver | Drop one passenger off (the last one ends the trip), or everyone left |
 | `GET` | `/health` | Public | API and database status |
 
 Every error looks the same: `{ "statusCode", "error", "message", "requestId" }`.
@@ -404,6 +407,7 @@ Every error looks the same: `{ "statusCode", "error", "message", "requestId" }`.
 - **No refresh tokens:** sessions last one day.
 - **Cash only:** no payment integration, ratings or driver location.
 - **Matching is zone-level and greedy:** one pickup zone per pool, drop-off order by distance.
+- **The trip line is an illustration:** the areas in between come from a small hand-drawn road map, and the Tesla moves stop by stop, not by GPS.
 
 ## Next improvements
 

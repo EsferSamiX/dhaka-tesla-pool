@@ -223,6 +223,103 @@ describe('Driver flow (e2e)', () => {
     });
   });
 
+  describe('dropping passengers off', () => {
+    async function startedTrip() {
+      const jashim = await onlineDriver();
+      const nusrat = await rideFor('Nusrat', 'MOH');
+      const rafiq = await rideFor('Rafiq', 'GL1');
+      await as(jashim)
+        .post(`/api/driver/requests/${nusrat.rideId}/accept`)
+        .expect(200);
+      await as(jashim)
+        .post(`/api/driver/requests/${rafiq.rideId}/accept`)
+        .expect(200);
+      await as(jashim).post('/api/driver/pool/arrive').expect(200);
+      await as(jashim).post('/api/driver/pool/start').expect(200);
+      return { jashim, nusrat, rafiq };
+    }
+    const dropOff = (driver: Account, rideId: string) =>
+      as(driver).post(`/api/driver/pool/drop-off/${rideId}`);
+
+    it('drops Nusrat, then Rafiq, each paying cash; the last one ends the trip', async () => {
+      const { jashim, nusrat, rafiq } = await startedTrip();
+
+      // Nusrat gets off first, at Mohakhali.
+      const early = await dropOff(jashim, rafiq.rideId).expect(409);
+      expect(early.body.message).toBe('Drop off Nusrat at Mohakhali first');
+
+      const afterNusrat = await dropOff(jashim, nusrat.rideId).expect(200);
+      expect(afterNusrat.body.status).toBe('STARTED');
+      expect(afterNusrat.body.members[0].droppedAt).not.toBeNull();
+      expect(afterNusrat.body.members[1].droppedAt).toBeNull();
+      expect(afterNusrat.body.route).toMatchObject({
+        position: 2,
+        moving: true,
+      });
+
+      // Nusrat's ride is over and paid; Rafiq is still on his way.
+      const nusratsRide = await as(nusrat.passenger)
+        .get(`/api/rides/${nusrat.rideId}`)
+        .expect(200);
+      expect(nusratsRide.body.status).toBe('COMPLETED');
+      expect(nusratsRide.body.fare).toMatchObject({ finalPaisa: 6000 });
+      expect(nusratsRide.body.fare.paidAt).not.toBeNull();
+      expect(nusratsRide.body.timeline.at(-1).reason).toBe(
+        'Dropped at Mohakhali · paid in cash: ৳60',
+      );
+      const rafiqsRide = await as(rafiq.passenger)
+        .get(`/api/rides/${rafiq.rideId}`)
+        .expect(200);
+      expect(rafiqsRide.body.status).toBe('STARTED');
+      expect(rafiqsRide.body.pool.seatMap).toEqual([
+        { name: 'Nusrat', seats: 1, you: false, dropped: true },
+        { name: 'Rafiq', seats: 1, you: true, dropped: false },
+      ]);
+
+      await dropOff(jashim, nusrat.rideId).expect(404);
+
+      const done = await dropOff(jashim, rafiq.rideId).expect(200);
+      expect(done.body.status).toBe('COMPLETED');
+      expect(done.body.route).toMatchObject({ position: 4, moving: false });
+      await as(jashim).get('/api/driver/pool').expect(200).expect({});
+    });
+
+    it('only happens during the trip, and only by its driver', async () => {
+      const jashim = await onlineDriver();
+      const nusrat = await rideFor('Nusrat', 'MOH');
+      await as(jashim)
+        .post(`/api/driver/requests/${nusrat.rideId}/accept`)
+        .expect(200);
+
+      const tooSoon = await dropOff(jashim, nusrat.rideId).expect(409);
+      expect(tooSoon.body.message).toBe(
+        'Start the trip before dropping anyone off',
+      );
+
+      await as(jashim).post('/api/driver/pool/arrive').expect(200);
+      await as(jashim).post('/api/driver/pool/start').expect(200);
+      const stranger = await onlineDriver();
+      await dropOff(stranger, nusrat.rideId).expect(404);
+      await as(nusrat.passenger)
+        .post(`/api/driver/pool/drop-off/${nusrat.rideId}`)
+        .expect(403);
+    });
+
+    it('lets "complete" drop off whoever is still on board', async () => {
+      const { jashim, nusrat, rafiq } = await startedTrip();
+      await dropOff(jashim, nusrat.rideId).expect(200);
+
+      const done = await as(jashim)
+        .post('/api/driver/pool/complete')
+        .expect(200);
+      expect(done.body.status).toBe('COMPLETED');
+      const rafiqsRide = await as(rafiq.passenger)
+        .get(`/api/rides/${rafiq.rideId}`)
+        .expect(200);
+      expect(rafiqsRide.body.status).toBe('COMPLETED');
+    });
+  });
+
   it('gives a ride to exactly one of two drivers accepting at once', async () => {
     const jashim = await onlineDriver();
     const karim = await onlineDriver();

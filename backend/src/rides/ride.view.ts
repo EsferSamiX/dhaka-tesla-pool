@@ -1,6 +1,8 @@
 import type { Prisma } from '../generated/prisma/client.js';
 import type { RideStatus } from '../generated/prisma/enums.js';
 import { calculateFare } from '../fares/fare.calculator.js';
+import { firstName } from '../pools/pool.view.js';
+import { planRoute, RouteView } from '../zones/route.js';
 
 const ZONE = { select: { code: true, name: true } } as const;
 
@@ -17,12 +19,19 @@ export const RIDE_INCLUDE = {
         include: {
           driver: { select: { name: true } },
           vehicle: { select: { name: true, plateNumber: true } },
+          pickupZone: ZONE,
           members: {
             where: { leftAt: null },
+            orderBy: { dropOffOrder: 'asc' },
             select: {
               seats: true,
+              droppedAt: true,
               rideRequest: {
-                select: { id: true, passenger: { select: { name: true } } },
+                select: {
+                  id: true,
+                  passenger: { select: { name: true } },
+                  destinationZone: ZONE,
+                },
               },
             },
           },
@@ -59,9 +68,14 @@ export interface RideView {
     vehicle: { name: string; plateNumber: string };
     dropOffOrder: number;
     /** Other passengers, first name only; their fares are never shown. */
-    coRiders: { name: string; seats: number }[];
+    coRiders: { name: string; seats: number; dropped: boolean }[];
+    capacity: number;
     seatsLeft: number;
+    /** Everyone's seats in drop-off order, for the seat boxes. */
+    seatMap: { name: string; seats: number; you: boolean; dropped: boolean }[];
   } | null;
+  /** The trip line: the pool's whole route, or just this ride's. */
+  route: RouteView;
   cancelReason: string | null;
   createdAt: Date;
 }
@@ -80,6 +94,13 @@ export function toRideView(ride: RideWithPool): RideView {
       passengers: pool.members.length,
     }).finalFarePaisa;
   }
+
+  const seatMap = (pool?.members ?? []).map((m) => ({
+    name: firstName(m.rideRequest.passenger.name),
+    seats: m.seats,
+    you: m.rideRequest.id === ride.id,
+    dropped: m.droppedAt != null,
+  }));
 
   return {
     id: ride.id,
@@ -103,21 +124,30 @@ export function toRideView(ride: RideWithPool): RideView {
           driver: pool.driver,
           vehicle: pool.vehicle,
           dropOffOrder: membership.dropOffOrder,
-          coRiders: pool.members
-            .filter((m) => m.rideRequest.id !== ride.id)
-            .map((m) => ({
-              name: firstName(m.rideRequest.passenger.name),
-              seats: m.seats,
-            })),
+          coRiders: seatMap
+            .filter((m) => !m.you)
+            .map(({ name, seats, dropped }) => ({ name, seats, dropped })),
+          capacity: pool.capacity,
           seatsLeft: pool.capacity - pool.occupiedSeats,
+          seatMap,
         }
       : null,
+    route: pool
+      ? planRoute(
+          pool.pickupZone.code,
+          pool.members.map((m) => ({
+            zoneCode: m.rideRequest.destinationZone.code,
+            riders: [firstName(m.rideRequest.passenger.name)],
+            dropped: m.droppedAt != null,
+          })),
+          pool.status,
+        )
+      : planRoute(
+          ride.pickupZone.code,
+          [{ zoneCode: ride.destinationZone.code, riders: [], dropped: false }],
+          ride.status,
+        ),
     cancelReason: ride.cancelReason,
     createdAt: ride.createdAt,
   };
-}
-
-/** Co-riders are shown by first name only (docs/assumptions.md §8). */
-function firstName(fullName: string): string {
-  return fullName.trim().split(/\s+/)[0] ?? fullName;
 }

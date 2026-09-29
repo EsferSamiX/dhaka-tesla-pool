@@ -44,6 +44,19 @@ export type RideStatus =
   | "COMPLETED"
   | "CANCELLED";
 
+/** The trip line: pickup, the areas in between, and each drop-off. */
+export interface TripRoute {
+  points: {
+    name: string;
+    kind: "PICKUP" | "DROP_OFF" | "VIA";
+    /** Who gets off here (first names). */
+    riders: string[];
+  }[];
+  /** The point the Tesla is at, or has just left when `moving`. */
+  position: number;
+  moving: boolean;
+}
+
 export interface Ride {
   id: string;
   status: RideStatus;
@@ -66,9 +79,13 @@ export interface Ride {
     driver: { name: string };
     vehicle: { name: string; plateNumber: string };
     dropOffOrder: number;
-    coRiders: { name: string; seats: number }[];
+    coRiders: { name: string; seats: number; dropped: boolean }[];
+    capacity: number;
     seatsLeft: number;
+    /** Everyone's seats in drop-off order. */
+    seatMap: { name: string; seats: number; you: boolean; dropped: boolean }[];
   } | null;
+  route: TripRoute;
   cancelReason: string | null;
   createdAt: string;
 }
@@ -114,8 +131,10 @@ export interface Pool {
     /** Locked once the trip starts; before that, the fare if it started now. */
     farePaisa: number;
     fareLocked: boolean;
+    droppedAt: string | null;
   }[];
   totalFarePaisa: number;
+  route: TripRoute;
   createdAt: string;
   arrivedAt: string | null;
   startedAt: string | null;
