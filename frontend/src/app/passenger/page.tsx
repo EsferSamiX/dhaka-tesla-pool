@@ -11,7 +11,11 @@ import { PASSENGER_PROMOS, PromoCarousel } from "@/components/promo-carousel";
 import { ErrorState } from "@/components/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMe } from "@/hooks/use-auth";
-import { useActiveRide, useRideHistory } from "@/hooks/use-rides";
+import {
+  useActiveRide,
+  useRideHistory,
+  useRidesCancelledHere,
+} from "@/hooks/use-rides";
 import { readTripPrefill } from "@/lib/trip-link";
 
 function PassengerHomeContent() {
@@ -22,22 +26,24 @@ function PassengerHomeContent() {
   const recentRides = recent.data?.items.slice(0, 3) ?? [];
 
   // When the live ride ends, refresh the list so it shows up there straight
-  // away, and keep a summary up if the driver has just dropped us off.
+  // away, and keep a summary up if the driver has just dropped us off. The
+  // ride may still have looked "arrived" at the last poll (a drop-off soon
+  // after the start), so the summary card checks for itself that the ride
+  // was completed. Rides cancelled here go straight back to booking.
   const liveRideId = active.data?.id;
-  const liveStatus = active.data?.status;
-  const previous = useRef({ id: liveRideId, status: liveStatus });
+  const previousRideId = useRef(liveRideId);
+  const cancelledHere = useRidesCancelledHere();
   const [endedRideId, setEndedRideId] = useState<string | null>(null);
   const backToHome = useCallback(() => setEndedRideId(null), []);
   const { refetch: refetchRecent } = recent;
   useEffect(() => {
-    const before = previous.current;
-    if (before.id && !liveRideId) {
+    const before = previousRideId.current;
+    if (before && !liveRideId) {
       void refetchRecent();
-      // Only a ride that was under way can have ended with a drop-off.
-      if (before.status === "STARTED") setEndedRideId(before.id);
+      if (!cancelledHere.includes(before)) setEndedRideId(before);
     }
-    previous.current = { id: liveRideId, status: liveStatus };
-  }, [liveRideId, liveStatus, refetchRecent]);
+    previousRideId.current = liveRideId;
+  }, [liveRideId, cancelledHere, refetchRecent]);
 
   return (
     <div className="space-y-6">
