@@ -142,15 +142,23 @@ export class DriverService {
     try {
       const poolId = await this.prisma.$transaction(async (tx) => {
         const activeId = await this.activePoolId(tx, driverId);
-        if (activeId) {
+        // The pool may have been cancelled (its last rider left) between the
+        // read above and the lock; then the driver has no trip after all.
+        const openPool = activeId
+          ? await this.pooling.lockPool(tx, activeId)
+          : null;
+        if (
+          openPool &&
+          openPool.status !== 'CANCELLED' &&
+          openPool.status !== 'COMPLETED'
+        ) {
           // Add the ride to the driver's open pool, if it fits.
-          const pool = await this.pooling.lockPool(tx, activeId);
-          if (pool.status !== 'MATCHED') {
+          if (openPool.status !== 'MATCHED') {
             throw new ConflictException(
               'Your trip is under way; finish it first',
             );
           }
-          const result = await this.pooling.join(tx, pool, rideId, {
+          const result = await this.pooling.join(tx, openPool, rideId, {
             actorType: 'DRIVER',
             actorId: driverId,
           });
@@ -161,7 +169,7 @@ export class DriverService {
                 : result.reason,
             );
           }
-          return pool.id;
+          return openPool.id;
         }
 
         // Lock the ride so two drivers can't take it at the same time.
