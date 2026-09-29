@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
+import { Logo } from "@/components/logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { homeFor, useMe, useSignOut } from "@/hooks/use-auth";
@@ -17,8 +18,9 @@ export function SiteHeader() {
       <div className="mx-auto flex h-14 max-w-4xl items-center justify-between gap-4 px-4">
         <Link
           href={me ? homeFor(me.role) : "/"}
-          className="font-semibold tracking-tight"
+          className="flex items-center gap-2 font-semibold tracking-tight"
         >
+          <Logo className="size-8" />
           Dhaka Tesla Pool
         </Link>
 
