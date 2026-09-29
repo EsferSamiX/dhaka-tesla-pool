@@ -13,11 +13,15 @@ import type { FareEstimate, Page, Ride, RideDetail, Zone } from "@/lib/types";
 /** How often a live ride refreshes; the API has no push channel (see docs). */
 export const LIVE_REFRESH_MS = 3000;
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const isRideId = (id: string) => UUID.test(id);
+
 const keys = {
   zones: ["zones"] as const,
   active: ["rides", "active"] as const,
   history: (page: number) => ["rides", "history", page] as const,
-  ride: (id: string) => ["rides", id] as const,
+  ride: (id: string) => ["rides", "detail", id] as const,
   estimate: (trip: Trip) => ["fare", trip] as const,
 };
 
@@ -72,6 +76,8 @@ export function useRideHistory(page: number) {
 
 export function useRide(id: string) {
   return useQuery({
+    // Only real ride IDs reach the API; "/rides/active" etc. are other routes.
+    enabled: UUID.test(id),
     queryKey: keys.ride(id),
     queryFn: () => api<RideDetail>(`/rides/${id}`),
     refetchInterval: (query) =>
