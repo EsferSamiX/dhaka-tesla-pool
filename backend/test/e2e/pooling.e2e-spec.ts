@@ -181,6 +181,64 @@ describe('Pooling & seat capacity (e2e)', () => {
     });
   });
 
+  describe('discount by passengers on board', () => {
+    it('gives all three riders 30% off when Bullet is full at the start', async () => {
+      const {
+        jashim,
+        first: nusrat,
+        rideId,
+      } = await jashimCarrying('Nusrat', 'MOH');
+      const rafiq = await signUp('Rafiq');
+      const shirin = await signUp('Shirin');
+      await post(rafiq, '/api/rides', trip('GL1')).expect(201);
+      await post(shirin, '/api/rides', trip('MOH')).expect(201);
+
+      // Before the start, Nusrat already sees the full-Tesla fare.
+      const before = await get(nusrat, '/api/rides/active').expect(200);
+      expect(before.body.fare.currentPaisa).toBe(5250);
+
+      await post(jashim, '/api/driver/pool/arrive').expect(200);
+      const started = await post(jashim, '/api/driver/pool/start').expect(200);
+
+      expect(
+        started.body.members.map(
+          (m: { passenger: { name: string }; farePaisa: number }) => [
+            m.passenger.name,
+            m.farePaisa,
+          ],
+        ),
+      ).toEqual([
+        ['Nusrat', 5250],
+        ['Shirin', 5250],
+        ['Rafiq', 6300],
+      ]);
+      const locked = await prisma.poolMember.findFirstOrThrow({
+        where: { rideRequestId: rideId },
+      });
+      expect(locked).toMatchObject({
+        poolDiscountBps: 3000,
+        finalFarePaisa: 5250,
+      });
+    });
+
+    it('drops back to 20% when a third rider leaves before the start', async () => {
+      const { first: nusrat } = await jashimCarrying('Nusrat', 'MOH');
+      const rafiq = await signUp('Rafiq');
+      const shirin = await signUp('Shirin');
+      await post(rafiq, '/api/rides', trip('GL1')).expect(201);
+      const { body: shirinRide } = await post(
+        shirin,
+        '/api/rides',
+        trip('MOH'),
+      ).expect(201);
+
+      await post(shirin, `/api/rides/${shirinRide.id}/cancel`).expect(200);
+
+      const view = await get(nusrat, '/api/rides/active').expect(200);
+      expect(view.body.fare.currentPaisa).toBe(6000);
+    });
+  });
+
   describe("Bullet's capacity", () => {
     it('never seats more than 3 passengers', async () => {
       // Rafiq and a friend take 2 seats; Nusrat takes the last one.

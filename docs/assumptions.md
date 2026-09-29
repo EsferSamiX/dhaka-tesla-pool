@@ -95,7 +95,7 @@ Approximate road distances, rounded to whole kilometres and stored in the seed d
 
 | Property | Why it matters |
 |---|---|
-| **Whole kilometres** | Every fare works out to whole taka and can be checked by hand. |
+| **Whole kilometres** | Fares work out to whole taka (or half taka with the 30% full-Tesla rate) and can be checked by hand. |
 | **Symmetric** (A → B = B → A) | Direction never changes the price. |
 | **Triangle inequality** (A → C ≤ A → B + B → C) | A detour can never be negative. Verified for all 2,184 zone triples. |
 
@@ -240,7 +240,7 @@ The full model and hand-calculations are in [fare-model.md](fare-model.md).
 
 ```
 subtotal      = (baseFare + distanceKm × perKmRate) × seats
-poolDiscount  = subtotal × 20%        — only if the pool has 2+ passengers at STARTED
+poolDiscount  = subtotal × rate       — by passengers at STARTED: 1 → 0%, 2 → 20%, 3+ → 30%
 passengerFare = subtotal − poolDiscount
 ```
 
@@ -248,13 +248,14 @@ passengerFare = subtotal − poolDiscount
 |---|---:|---:|
 | Base fare | ৳30 | 3000 |
 | Per-km rate | ৳15 | 1500 |
-| Pool discount | 20% | 2000 basis points |
+| Pool discount, 2 passengers | 20% | 2000 basis points |
+| Pool discount, 3 or more | 30% | 3000 basis points |
 
 | Rule | Detail |
 |---|---|
 | **Money storage** | Integer paisa. No floating-point arithmetic anywhere in the fare path. |
 | **Distance charged** | Each passenger pays for their own direct distance, never the detour. |
-| **Pool discount basis** | Counts passengers, not seats. One passenger booking two seats alone gets no discount. |
+| **Pool discount basis** | Counts passengers, not seats. One passenger booking two seats alone gets no discount. Everyone on board gets the same rate. |
 | **Estimate** | Shown at request time using the solo fare, the maximum the passenger can pay. |
 | **Final fare** | Calculated and locked when the trip starts. |
 | **Payment** | Cash only; marked paid on `COMPLETED`. A simulated TeslaPay wallet is a future improvement. |
@@ -314,7 +315,7 @@ The seed data, tests and demo use the cast from the brief throughout.
 | A-11 | Driver cancellation returns passengers to `REQUESTED`. | [6.3](#63-driver-cancellation) |
 | A-12 | Fares are locked at `STARTED`; passengers never pay more than the estimate. | [7](#7-fare--payment) |
 | A-13 | Money is stored as integer paisa. | [7](#7-fare--payment) |
-| A-14 | Pool discount is 20% and counts passengers, not seats. | [7](#7-fare--payment) |
+| A-14 | Pool discount is the same for everyone on board: 20% with 2 passengers, 30% with 3 or more; it counts passengers, not seats. | [7](#7-fare--payment) |
 | A-15 | Payment is cash only. | [7](#7-fare--payment) |
 | A-16 | One role per account; one vehicle per driver. | [8](#8-users-vehicles--access) |
 | A-17 | Live status via polling, not WebSockets. | [9](#9-technical-assumptions) |

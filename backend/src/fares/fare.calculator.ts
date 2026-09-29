@@ -4,20 +4,28 @@
  * (1 bp = 0.01%), so no floating-point arithmetic is ever involved.
  *
  *   subtotal      = (baseFare + distanceKm × perKmRate) × seats
- *   poolDiscount  = subtotal × 20%   — only when the pool has 2+ passengers
+ *   poolDiscount  = subtotal × rate, by passengers on board at the start:
+ *                   1 → 0%, 2 → 20%, 3 or more → 30% (the same rate for all)
  *   passengerFare = subtotal − poolDiscount
  */
 
 export const BASE_FARE_PAISA = 3000; // ৳30
 export const PER_KM_RATE_PAISA = 1500; // ৳15 per km
-export const POOL_DISCOUNT_BPS = 2000; // 20%
+/** Discount for everyone on board, in basis points, by passenger count. */
+export const POOL_DISCOUNT_BPS = {
+  shared: 2000, // 2 passengers: 20%
+  full: 3000, // 3 or more: 30%
+} as const;
 export const MAX_SEATS = 3;
 
 export interface FareInput {
   distanceKm: number;
   seats: number;
-  /** True when the pool has two or more passengers when the trip starts. */
-  pooled: boolean;
+  /**
+   * Passengers (not seats) in the pool when the trip starts; 1 means riding
+   * alone. One passenger booking two seats still counts once.
+   */
+  passengers: number;
 }
 
 /** Every component of a fare, stored with the ride so it can be explained later. */
@@ -34,7 +42,7 @@ export interface FareBreakdown {
 export function calculateFare({
   distanceKm,
   seats,
-  pooled,
+  passengers,
 }: FareInput): FareBreakdown {
   if (!Number.isInteger(distanceKm) || distanceKm <= 0) {
     throw new RangeError(
@@ -47,9 +55,15 @@ export function calculateFare({
     );
   }
 
+  if (!Number.isInteger(passengers) || passengers < 1) {
+    throw new RangeError(
+      `passengers must be a positive integer, got ${passengers}`,
+    );
+  }
+
   const distanceChargePaisa = distanceKm * PER_KM_RATE_PAISA;
   const subtotalPaisa = (BASE_FARE_PAISA + distanceChargePaisa) * seats;
-  const poolDiscountBps = pooled ? POOL_DISCOUNT_BPS : 0;
+  const poolDiscountBps = poolDiscountBpsFor(passengers);
   const poolDiscountPaisa = percentOf(subtotalPaisa, poolDiscountBps);
 
   return {
@@ -61,6 +75,13 @@ export function calculateFare({
     poolDiscountPaisa,
     finalFarePaisa: subtotalPaisa - poolDiscountPaisa,
   };
+}
+
+/** The discount rate everyone on board gets, for a given passenger count. */
+export function poolDiscountBpsFor(passengers: number): number {
+  if (passengers >= 3) return POOL_DISCOUNT_BPS.full;
+  if (passengers === 2) return POOL_DISCOUNT_BPS.shared;
+  return 0;
 }
 
 /** `amount × bps / 10000`, rounded half up to the nearest paisa. */
