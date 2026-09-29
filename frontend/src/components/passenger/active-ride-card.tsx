@@ -99,8 +99,8 @@ export function ActiveRideCard({
         ) : (
           ride.status === "REQUESTED" && (
             <p className="text-sm text-muted-foreground">
-              Waiting for a driver to accept. If a Tesla heading your way has a
-              free seat, you&apos;ll join it automatically.
+              Waiting for a driver to accept. Drivers heading your way will see
+              your request.
             </p>
           )
         )}

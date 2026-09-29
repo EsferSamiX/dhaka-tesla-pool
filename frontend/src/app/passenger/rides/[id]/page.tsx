@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { use } from "react";
 import { ActiveRideCard } from "@/components/passenger/active-ride-card";
-import { ErrorState } from "@/components/states";
+import { EmptyState, ErrorState } from "@/components/states";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useRide } from "@/hooks/use-rides";
+import { isRideId, useRide } from "@/hooks/use-rides";
 import { formatWhen } from "@/lib/format";
 import { STATUS_LABEL } from "@/lib/ride-status";
 import type { TimelineEntry } from "@/lib/types";
@@ -34,7 +34,16 @@ export default function RideDetailPage({
         </Link>
       </div>
 
-      {ride.isPending ? (
+      {!isRideId(id) ? (
+        <EmptyState title="Ride not found">
+          <Link
+            href="/passenger/history"
+            className="underline underline-offset-4"
+          >
+            See all your rides
+          </Link>
+        </EmptyState>
+      ) : ride.isPending ? (
         <Skeleton className="h-72 w-full" aria-busy="true" />
       ) : ride.isError ? (
         <ErrorState error={ride.error} onRetry={() => ride.refetch()} />
