@@ -2,6 +2,7 @@
 
 import {
   keepPreviousData,
+  useIsMutating,
   useMutation,
   useQuery,
   useQueryClient,
@@ -11,6 +12,8 @@ import { LIVE_REFRESH_MS } from "@/hooks/use-rides";
 import { api } from "@/lib/api";
 import type { Page, Pool, User, WaitingRequest } from "@/lib/types";
 
+const STATUS_KEY = ["driver", "status"] as const;
+
 const keys = {
   requests: ["driver", "requests"] as const,
   pool: ["driver", "pool"] as const,
@@ -18,13 +21,19 @@ const keys = {
   history: (page: number) => ["driver", "history", page] as const,
 };
 
-/** Waiting rides this driver can accept; only fetched while online. */
+/**
+ * Waiting rides this driver can accept; only fetched while online, and not
+ * while going on- or offline (the server may already be offline and answer
+ * "Go online first").
+ */
 export function useWaitingRequests(online: boolean) {
+  const switching = useIsMutating({ mutationKey: STATUS_KEY }) > 0;
+  const live = online && !switching;
   return useQuery({
     queryKey: keys.requests,
     queryFn: () => api<WaitingRequest[]>("/driver/requests"),
-    enabled: online,
-    refetchInterval: online ? LIVE_REFRESH_MS : false,
+    enabled: live,
+    refetchInterval: live ? LIVE_REFRESH_MS : false,
   });
 }
 
@@ -48,6 +57,7 @@ export function useDriverHistory(page: number) {
 export function useSetOnline() {
   const qc = useQueryClient();
   return useMutation({
+    mutationKey: STATUS_KEY,
     mutationFn: (isOnline: boolean) =>
       api<{ isOnline: boolean }>("/driver/status", {
         method: "PATCH",
