@@ -52,11 +52,15 @@ export function useSetOnline() {
         method: "PATCH",
         body: { isOnline },
       }),
+    // A poll that lands while the switch is in flight can get "Go online
+    // first". Cancel it and start the list afresh, so that error is never
+    // shown; going online loads the list again from scratch.
+    onMutate: () => qc.cancelQueries({ queryKey: keys.requests }),
     onSuccess: ({ isOnline }) => {
       qc.setQueryData<User | null>(ME_KEY, (me) =>
         me ? { ...me, isOnline } : me,
       );
-      void qc.invalidateQueries({ queryKey: keys.requests });
+      qc.removeQueries({ queryKey: keys.requests });
     },
   });
 }
