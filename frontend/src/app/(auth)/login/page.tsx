@@ -15,17 +15,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { homeFor, useMe, useSignIn } from "@/hooks/use-auth";
 import type { User } from "@/lib/types";
-
-const DEMO_PASSWORD = "tesla1234";
-const DEMO_ACCOUNTS = [
-  { name: "Jashim", role: "Driver · Bullet", email: "jashim@dhakatesla.test" },
-  { name: "Nusrat", role: "Passenger", email: "nusrat@dhakatesla.test" },
-  { name: "Rafiq", role: "Passenger", email: "rafiq@dhakatesla.test" },
-  { name: "Shirin", role: "Passenger", email: "shirin@dhakatesla.test" },
-];
 
 /**
  * Only follow same-site paths from ?next=, never another origin. Parsing it
@@ -107,32 +98,6 @@ function LoginForm() {
             {signIn.isPending ? "Signing in…" : "Sign in"}
           </Button>
         </form>
-
-        <Separator />
-
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">
-            Or try the story cast (password <code>{DEMO_PASSWORD}</code>):
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {DEMO_ACCOUNTS.map((account) => (
-              <Button
-                key={account.email}
-                variant="outline"
-                className="h-auto flex-col items-start py-2"
-                disabled={signIn.isPending}
-                onClick={() =>
-                  submit({ email: account.email, password: DEMO_PASSWORD })
-                }
-              >
-                <span>{account.name}</span>
-                <span className="text-xs font-normal text-muted-foreground">
-                  {account.role}
-                </span>
-              </Button>
-            ))}
-          </div>
-        </div>
       </CardContent>
       <CardFooter className="text-sm text-muted-foreground">
         New here?&nbsp;
