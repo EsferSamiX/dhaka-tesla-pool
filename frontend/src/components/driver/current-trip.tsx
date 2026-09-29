@@ -35,13 +35,15 @@ const TITLE: Record<PoolStatus, string> = {
 };
 
 /**
- * The one next step before the trip starts. During the trip the driver drops
- * passengers off one by one, and the last drop-off completes it.
+ * The one next step for each stage of the trip. During the trip the driver
+ * drops passengers off one by one (the last drop-off ends it), or finishes
+ * the trip to drop off everyone still on board at once.
  */
 const NEXT: Partial<Record<PoolStatus, { action: TripAction; label: string }>> =
   {
     MATCHED: { action: "arrive", label: "I've arrived" },
     DRIVER_ARRIVED: { action: "start", label: "Start trip" },
+    STARTED: { action: "complete", label: "Finish trip" },
   };
 
 export function CurrentTrip({ pool }: { pool: Pool }) {
@@ -159,10 +161,16 @@ export function CurrentTrip({ pool }: { pool: Pool }) {
 
       {(next || canCancel) && (
         <CardFooter className="flex-col items-stretch gap-3">
+          {started && (
+            <p className="text-sm text-muted-foreground">
+              Finishing drops off everyone still on board and collects their
+              fares in cash.
+            </p>
+          )}
           {next && (
             <Button
               size="lg"
-              disabled={step.isPending}
+              disabled={step.isPending || dropOff.isPending}
               onClick={() => step.mutate(next.action)}
             >
               {step.isPending ? "Updating…" : next.label}
