@@ -9,12 +9,16 @@ import { taka, waitedFor } from "@/lib/format";
 
 export function WaitingRequests({
   online,
-  hasOpenTrip,
+  tripPickup,
 }: {
   online: boolean;
-  /** With passengers on board, only rides that fit the trip are listed. */
-  hasOpenTrip: boolean;
+  /**
+   * The open trip's pickup zone, if any. Then only rides from there that fit
+   * the trip are listed.
+   */
+  tripPickup?: string;
 }) {
+  const hasOpenTrip = !!tripPickup;
   const requests = useWaitingRequests(online);
   const accept = useAcceptRide();
 
@@ -28,7 +32,8 @@ export function WaitingRequests({
         </h2>
         {hasOpenTrip && (
           <p className="text-sm text-muted-foreground">
-            Same pickup, a free seat, and a short enough detour for everyone.
+            Showing only riders from {tripPickup} with a free seat and a short
+            enough detour for everyone. Others appear again after this trip.
           </p>
         )}
       </div>
@@ -94,5 +99,17 @@ export function WaitingRequests({
         </ul>
       )}
     </section>
+  );
+}
+
+/** Shown instead of the list once the Tesla is boarding or on its way. */
+export function RequestsPaused({ started }: { started: boolean }) {
+  return (
+    <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+      {started
+        ? "You're on a trip, so new requests are paused."
+        : "Your Tesla is boarding, so it can't take new riders."}{" "}
+      Waiting riders appear here again after this trip.
+    </p>
   );
 }

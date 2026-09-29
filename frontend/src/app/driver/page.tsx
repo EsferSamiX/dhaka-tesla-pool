@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { CurrentTrip } from "@/components/driver/current-trip";
 import { OnlineToggle } from "@/components/driver/online-toggle";
-import { WaitingRequests } from "@/components/driver/waiting-requests";
+import {
+  RequestsPaused,
+  WaitingRequests,
+} from "@/components/driver/waiting-requests";
 import { ErrorState } from "@/components/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMe } from "@/hooks/use-auth";
@@ -49,9 +52,13 @@ export default function DriverHome() {
         trip && <CurrentTrip pool={trip} />
       )}
 
-      {!pool.isPending && acceptingRiders && (
-        <WaitingRequests online={online} hasOpenTrip={!!trip} />
-      )}
+      {!pool.isPending &&
+        online &&
+        (acceptingRiders ? (
+          <WaitingRequests online={online} tripPickup={trip?.pickupZone.name} />
+        ) : (
+          <RequestsPaused started={trip?.status === "STARTED"} />
+        ))}
     </div>
   );
 }
