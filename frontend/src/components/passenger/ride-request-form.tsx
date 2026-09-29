@@ -211,7 +211,7 @@ function FareEstimatePanel({
       {[
         { label: "Alone", price: soloFarePaisa, note: `${distanceKm} km` },
         { label: "With 2", price: pooledFarePaisa, note: "20% off" },
-        { label: "With 3+", price: fullPoolFarePaisa, note: "30% off" },
+        { label: "With 3", price: fullPoolFarePaisa, note: "30% off" },
       ].map((option, i) => (
         <div key={option.label}>
           <p className="text-muted-foreground">{option.label}</p>
