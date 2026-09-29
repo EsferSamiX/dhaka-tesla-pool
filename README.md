@@ -70,7 +70,7 @@ Every assumption made along the way is written down in [docs/assumptions.md](doc
 
 **Driver**
 - Go online/offline; see waiting requests only while online.
-- Accept a request (starts a pool) or add a fitting request to the open pool.
+- Accept a request (starts a pool) or add a fitting request to the open pool. Requests that can't join are still listed with the reason (e.g. "Your seats are full; you can't add more").
 - Arrive → start (fares lock) → **drop passengers off one by one** in drop-off order (each pays cash and their ride completes; the last drop-off ends the trip), or **Finish trip** to drop off everyone left at once. Cancel is possible before the start.
 - Current trip view with seat boxes, the trip line, each rider's fare, and cash collected so far. Trip history.
 
@@ -94,6 +94,10 @@ Every assumption made along the way is written down in [docs/assumptions.md](doc
 | Driver sees a waiting request | Nusrat's completed ride with timeline |
 |---|---|
 | ![Jashim's waiting requests](docs/images/driver-requests.png) | ![Nusrat's completed ride](docs/images/passenger-completed.png) |
+
+| Bullet is full: a 4th rider is listed but can't be added | Passenger's home right after the drop-off |
+|---|---|
+| ![Bullet full with Nusrat, Shirin and Rafiq; Bappi's request is marked "Your seats are full"](docs/images/driver-full.png) | ![Nusrat's "Your trip has ended" card](docs/images/passenger-trip-ended.png) |
 
 ## Live demo & credentials
 
@@ -311,6 +315,8 @@ npm run dev
 | `npm run db:deploy` | Apply pending migrations (CI, Docker, production) |
 | `npm run db:seed` | Insert or update the 14 zones, the distance table and the story cast |
 
+On Vercel, production deploys apply pending migrations automatically during the build; preview deploys don't, because they share the production database.
+
 ## Environment variables
 
 Never commit real values. Each app has a `.env.example` with safe local defaults.
@@ -350,7 +356,7 @@ cd ../frontend
 npm run lint && npm run typecheck && npm run build
 ```
 
-**67 unit and 58 e2e tests.** The e2e tests run through the real HTTP stack and database, and clean up after themselves. The behaviours the brief asks for:
+**67 unit and 59 e2e tests.** The e2e tests run through the real HTTP stack and database, and clean up after themselves. The behaviours the brief asks for:
 
 | Required behaviour | Where it's tested |
 |---|---|
