@@ -10,7 +10,6 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
-import { Throttle } from '@nestjs/throttler';
 import type { CookieOptions, Response } from 'express';
 import { CurrentUser, Public } from '../common/decorators/auth.decorators.js';
 import { PublicUser, UsersService } from '../users/users.service.js';
@@ -23,7 +22,7 @@ import {
 } from './auth.constants.js';
 import { AuthService } from './auth.service.js';
 import { SignInDto, SignUpDto } from './dto/auth.dto.js';
-import { AuthThrottlerGuard } from './guards/auth-throttler.guard.js';
+import { AuthThrottlerGuard, Throttle } from './guards/auth-throttler.guard.js';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -48,7 +47,7 @@ export class AuthController {
   })
   @Public()
   @UseGuards(AuthThrottlerGuard)
-  @Throttle({ default: SIGN_UP_LIMIT })
+  @Throttle(SIGN_UP_LIMIT)
   @Post('signup')
   async signUp(
     @Body() dto: SignUpDto,
@@ -62,7 +61,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Sign in and receive the session cookie' })
   @Public()
   @UseGuards(AuthThrottlerGuard)
-  @Throttle({ default: SIGN_IN_LIMIT })
+  @Throttle(SIGN_IN_LIMIT)
   @Post('signin')
   @HttpCode(HttpStatus.OK)
   async signIn(
