@@ -471,7 +471,7 @@ Nusrat and Rafiq share Bullet on the morning of the story.
 | # | Who | Call | Result |
 |---|---|---|---|
 | 1 | Jashim | `PATCH /api/driver/status` `{ isOnline: true }` | Online |
-| 2 | Nusrat | `POST /api/fares/estimate` BAN → MOH | Alone ৳75, with 2 ৳60, with 3+ ৳52.50 |
+| 2 | Nusrat | `POST /api/fares/estimate` BAN → MOH | Alone ৳75, with 2 ৳60, with 3 ৳52.50 |
 | 3 | Nusrat | `POST /api/rides` BAN → MOH | `REQUESTED` (no open pool yet) |
 | 4 | Jashim | `GET /api/driver/requests` | Sees Nusrat |
 | 5 | Jashim | `POST /api/driver/requests/{nusrat}/accept` | Pool created; Nusrat `MATCHED` |
