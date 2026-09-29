@@ -99,6 +99,17 @@ Approximate road distances, rounded to whole kilometres and stored in the seed d
 | **Symmetric** (A → B = B → A) | Direction never changes the price. |
 | **Triangle inequality** (A → C ≤ A → B + B → C) | A detour can never be negative. Verified for all 2,184 zone triples. |
 
+### 3.3 Trip Line (Display Only)
+
+Passengers and the driver see the trip as one line: the pickup, the areas passed on the way, and each drop-off, with the Tesla drawn where it is now.
+
+| Rule | Detail |
+|---|---|
+| **Road map** | A small hand-drawn map of the 14 zones plus 13 well-known areas between them (Airport, Khilkhet, Kuril, Kakoli, Nadda, Amtoli, ECB Chattar, Kalshi, Diabari, Kochukhet, Agargaon, Shyamoli, Panthapath), joined by the main roads with approximate lengths. |
+| **Path** | The shortest path on that map between consecutive stops. For example, Banani → Mohakhali passes Kakoli. |
+| **Tesla position** | At the pickup until the trip starts; moving towards the next stop while `STARTED`; at a drop-off once that passenger is dropped; at the last stop when the trip completes. There is no GPS. |
+| **Not used for fares** | Fares and matching use only the distance table (§3.2). The areas in between are an illustration, and the screen says so. |
+
 ---
 
 ## 4. Matching Rules
@@ -175,7 +186,7 @@ stateDiagram-v2
     REQUESTED --> MATCHED: joins pool / driver accepts
     MATCHED --> DRIVER_ARRIVED: driver arrives
     DRIVER_ARRIVED --> STARTED: driver starts (fares locked)
-    STARTED --> COMPLETED: driver completes
+    STARTED --> COMPLETED: driver drops the passenger off
     REQUESTED --> CANCELLED: passenger cancels
     MATCHED --> CANCELLED: passenger cancels
     DRIVER_ARRIVED --> CANCELLED: passenger cancels
@@ -192,7 +203,7 @@ stateDiagram-v2
 | `REQUESTED` | `MATCHED` | System / Driver | Joins an open pool, or a driver accepts it |
 | `MATCHED` | `DRIVER_ARRIVED` | Driver | Pool belongs to this driver |
 | `DRIVER_ARRIVED` | `STARTED` | Driver | Pool has ≥ 1 active member; **fares are locked** |
-| `STARTED` | `COMPLETED` | Driver | — |
+| `STARTED` | `COMPLETED` | Driver | The driver drops this passenger off (§5.5); the pool completes when the last one is dropped |
 | `REQUESTED`, `MATCHED`, `DRIVER_ARRIVED` | `CANCELLED` | Passenger | Ride belongs to this passenger |
 | `MATCHED`, `DRIVER_ARRIVED` | `REQUESTED` | Driver | Driver cancels the pool before start |
 
@@ -205,6 +216,17 @@ The brief suggests `MATCHED/ACCEPTED` as a single step. This design keeps one st
 ### 5.4 Audit Trail
 
 Every transition is recorded in a status history table with the ride, previous status, new status, actor, reason and timestamp. Any past ride can be reconstructed from it.
+
+### 5.5 Drop-offs
+
+During the trip the driver drops passengers off one at a time.
+
+| Rule | Detail |
+|---|---|
+| **Order** | In the planned drop-off order (§4.2). Riders getting off in the same zone may be dropped in either order. Anyone else is refused with `409` ("Drop off Nusrat at Mohakhali first"). |
+| **Effect** | The passenger's ride becomes `COMPLETED`, their locked fare is recorded as paid in cash, and their seat shows as free. Everyone else stays `STARTED`. |
+| **End of trip** | The last drop-off completes the pool. "Complete trip" is still available and drops off everyone left. |
+| **Guards** | Only while the pool is `STARTED`, only by its driver, and each passenger once. The database refuses a drop-off for someone who left the pool or whose fare was never locked. |
 
 ---
 
@@ -319,3 +341,5 @@ The seed data, tests and demo use the cast from the brief throughout.
 | A-15 | Payment is cash only. | [7](#7-fare--payment) |
 | A-16 | One role per account; one vehicle per driver. | [8](#8-users-vehicles--access) |
 | A-17 | Live status via polling, not WebSockets. | [9](#9-technical-assumptions) |
+| A-18 | The trip line's areas in between come from a small hand-drawn road map and are for display only. | [3.3](#33-trip-line-display-only) |
+| A-19 | Passengers are dropped off one at a time in drop-off order; each one's ride completes and is paid when they get off. | [5.5](#55-drop-offs) |

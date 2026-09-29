@@ -62,7 +62,8 @@
 | `GET` | `/api/driver/pool` | Driver | Current pool, with passengers and seats |
 | `POST` | `/api/driver/pool/arrive` | Driver | Mark arrived at pickup |
 | `POST` | `/api/driver/pool/start` | Driver | Start the trip, lock fares |
-| `POST` | `/api/driver/pool/complete` | Driver | Complete the trip |
+| `POST` | `/api/driver/pool/drop-off/:rideId` | Driver | Drop off one passenger; the last one completes the trip |
+| `POST` | `/api/driver/pool/complete` | Driver | Drop off everyone left and complete the trip |
 | `POST` | `/api/driver/pool/cancel` | Driver | Cancel the pool before start |
 | `GET` | `/api/driver/pools` | Driver | Trip history |
 | `GET` | `/api/health` | Public | Service and database health |
@@ -210,8 +211,24 @@ Returned by every ride endpoint. A passenger sees their own fare only; co-riders
     "driver": { "name": "Jashim" },
     "vehicle": { "name": "Bullet", "plateNumber": "DM-TA-11-2025" },
     "dropOffOrder": 1,
-    "coRiders": [ { "name": "Rafiq", "seats": 1 } ],
-    "seatsLeft": 1
+    "coRiders": [ { "name": "Rafiq", "seats": 1, "dropped": false } ],
+    "capacity": 3,
+    "seatsLeft": 1,
+    "seatMap": [
+      { "name": "Nusrat", "seats": 1, "you": true, "dropped": false },
+      { "name": "Rafiq", "seats": 1, "you": false, "dropped": false }
+    ]
+  },
+  "route": {
+    "points": [
+      { "name": "Banani", "kind": "PICKUP", "riders": [] },
+      { "name": "Kakoli", "kind": "VIA", "riders": [] },
+      { "name": "Mohakhali", "kind": "DROP_OFF", "riders": ["Nusrat"] },
+      { "name": "Amtoli", "kind": "VIA", "riders": [] },
+      { "name": "Gulshan 1", "kind": "DROP_OFF", "riders": ["Rafiq"] }
+    ],
+    "position": 0,
+    "moving": false
   },
   "createdAt": "2026-09-28T02:41:00Z"
 }
@@ -222,6 +239,8 @@ Returned by every ride endpoint. A passenger sees their own fare only; co-riders
 | `fare.currentPaisa` | What the passenger would pay if the trip started now; changes as the pool changes. |
 | `fare.finalPaisa` | Set when the trip starts; never changes afterwards. |
 | `pool` | `null` while `REQUESTED` or after cancellation. |
+| `pool.seatMap` | Everyone's seats in drop-off order, for the seat boxes; `dropped` seats are free again. |
+| `route` | The trip line: the pool's whole route, or just this ride's while it waits. `VIA` points are areas passed on the way (display only, [assumptions §3.3](assumptions.md#33-trip-line-display-only)). `position` is the point the Tesla is at, or has just left when `moving`. |
 
 ### `POST /api/rides` — *Passenger*
 
@@ -345,7 +364,8 @@ Returned by all `/api/driver/pool*` endpoints. The driver sees every member's fa
       "seats": 1,
       "dropOffOrder": 1,
       "farePaisa": 6000,
-      "fareLocked": false
+      "fareLocked": false,
+      "droppedAt": null
     },
     {
       "rideId": "r-2…",
@@ -355,10 +375,12 @@ Returned by all `/api/driver/pool*` endpoints. The driver sees every member's fa
       "seats": 1,
       "dropOffOrder": 2,
       "farePaisa": 7200,
-      "fareLocked": false
+      "fareLocked": false,
+      "droppedAt": null
     }
   ],
   "totalFarePaisa": 13200,
+  "route": { "points": [ "…same shape as in the ride object…" ], "position": 0, "moving": false },
   "createdAt": "2026-09-28T02:41:40Z",
   "arrivedAt": null,
   "startedAt": null,
@@ -376,7 +398,8 @@ Returned by all `/api/driver/pool*` endpoints. The driver sees every member's fa
 |---|---|---|---|
 | `POST /api/driver/pool/arrive` | `MATCHED → DRIVER_ARRIVED` | Pool stops accepting members | Pool not `MATCHED` |
 | `POST /api/driver/pool/start` | `DRIVER_ARRIVED → STARTED` | **Fares calculated and locked** | Pool not `DRIVER_ARRIVED`, or no members left |
-| `POST /api/driver/pool/complete` | `STARTED → COMPLETED` | Fares marked paid (cash); driver free | Pool not `STARTED` |
+| `POST /api/driver/pool/drop-off/:rideId` | That ride `STARTED → COMPLETED` | Fare marked paid (cash); the last drop-off completes the pool | Pool not `STARTED`, or someone must be dropped first (`404` if the ride isn't on board) |
+| `POST /api/driver/pool/complete` | `STARTED → COMPLETED` | Everyone still on board dropped off and paid; driver free | Pool not `STARTED` |
 | `POST /api/driver/pool/cancel` | `MATCHED`/`DRIVER_ARRIVED → CANCELLED` | Members return to `REQUESTED` | Pool already `STARTED` |
 
 `/cancel` takes an optional `{ "reason": "Vehicle breakdown" }`. Each action applies the same transition to every active member and records it in their timeline. **Response `200`** — the updated pool object. **`404`** if the driver has no active pool.
@@ -456,6 +479,7 @@ Nusrat and Rafiq share Bullet on the morning of the story.
 | 7 | Nusrat | `GET /api/rides/active` | Co-rider Rafiq; current fare ৳60 |
 | 8 | Jashim | `POST /api/driver/pool/arrive` | Both `DRIVER_ARRIVED` |
 | 9 | Jashim | `POST /api/driver/pool/start` | Both `STARTED`; fares locked at ৳60 and ৳72 |
-| 10 | Jashim | `POST /api/driver/pool/complete` | Both `COMPLETED`; ৳132 cash |
+| 10 | Jashim | `POST /api/driver/pool/drop-off/{nusrat}` | Nusrat `COMPLETED`, paid ৳60; Rafiq still `STARTED` |
+| 11 | Jashim | `POST /api/driver/pool/drop-off/{rafiq}` | Rafiq `COMPLETED`, paid ৳72; trip `COMPLETED`, ৳132 cash |
 
 **Variation — the last seat:** after step 6, Bullet has one seat left. If Shirin and a fourth passenger both send `POST /api/rides` for a compatible trip at the same moment, exactly one joins the pool; the other receives `201` with status `REQUESTED` and waits for another driver.
