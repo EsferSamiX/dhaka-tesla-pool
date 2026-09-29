@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { Logo } from "@/components/logo";
+import { Car } from "lucide-react";
 import type { TripRoute as Route } from "@/lib/types";
 
 /**
@@ -20,7 +20,7 @@ export function TripRoute({
   return (
     <div className="space-y-2">
       <div className="-mx-1 overflow-x-auto px-1 pb-1">
-        <ol className="flex min-w-max pt-9" aria-label="Route">
+        <ol className="flex min-w-max pt-10" aria-label="Route">
           {points.map((p, i) => {
             const stop = p.kind !== "VIA";
             const reached = showTesla && i <= position;
@@ -53,14 +53,18 @@ export function TripRoute({
                 )}
 
                 {teslaHere && (
-                  <Logo
+                  <span
                     className={cn(
-                      "absolute -top-9 size-7 transition-all",
+                      "absolute -top-10 flex size-8 items-center justify-center rounded-full bg-foreground text-background transition-all",
                       moving && i < last
                         ? "left-full -translate-x-1/2"
                         : "left-1/2 -translate-x-1/2",
                     )}
-                  />
+                    aria-label={moving ? "Tesla on the way" : "Tesla is here"}
+                  >
+                    {/* The icon faces right, the way the line runs. */}
+                    <Car className="size-5" />
+                  </span>
                 )}
 
                 <span
