@@ -6,6 +6,7 @@ import { Suspense, useEffect, useRef } from "react";
 import { ActiveRideCard } from "@/components/passenger/active-ride-card";
 import { RideList } from "@/components/passenger/ride-list";
 import { RideRequestForm } from "@/components/passenger/ride-request-form";
+import { PASSENGER_PROMOS, PromoCarousel } from "@/components/promo-carousel";
 import { ErrorState } from "@/components/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMe } from "@/hooks/use-auth";
@@ -45,15 +46,18 @@ function PassengerHomeContent() {
       ) : active.data ? (
         <ActiveRideCard ride={active.data} />
       ) : (
-        <RideRequestForm
-          // A new prefill (e.g. "Same trip again") starts a fresh form.
-          key={
-            prefill
-              ? `${prefill.pickupZone}-${prefill.destinationZone}-${prefill.seats}`
-              : "blank"
-          }
-          prefill={prefill}
-        />
+        <div className="space-y-4">
+          <PromoCarousel promos={PASSENGER_PROMOS} />
+          <RideRequestForm
+            // A new prefill (e.g. "Same trip again") starts a fresh form.
+            key={
+              prefill
+                ? `${prefill.pickupZone}-${prefill.destinationZone}-${prefill.seats}`
+                : "blank"
+            }
+            prefill={prefill}
+          />
+        </div>
       )}
 
       {recentRides.length > 0 && (
