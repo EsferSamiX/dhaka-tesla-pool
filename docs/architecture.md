@@ -95,7 +95,7 @@ flowchart TB
 
 - One repository, **two Vercel projects**, each with its own root directory. A push rebuilds only the project whose files changed.
 - The backend runs as **serverless functions**: instances start on demand and may be cold after idle periods.
-- Migrations run against Neon's **direct** connection (`DIRECT_URL`); the app uses the **pooled** one (`DATABASE_URL`) so short-lived functions don't exhaust connections.
+- Migrations run against Neon's **direct** connection (`DATABASE_URL_UNPOOLED`, set by the Neon integration; `DIRECT_URL` locally); the app uses the **pooled** one (`DATABASE_URL`) so short-lived functions don't exhaust connections.
 
 ### 3.2 Local (Docker Compose)
 
@@ -360,7 +360,7 @@ A global exception filter returns every error in one shape:
 | Serverless backend | Cold starts can add a few seconds after idle periods. | Acceptable for an MVP; a long-running server removes it. |
 | Polling instead of push | Status changes appear with up to ~5 seconds' delay. | Polling interval is short and stops when the ride ends. |
 | Zone-level geography | Matching ignores exact addresses and real traffic. | Documented in [assumptions.md](assumptions.md); a routing service is a future improvement. |
-| Single region | Latency depends on the Vercel and Neon regions chosen. | Both set to the region closest to Dhaka available on the free tier. |
+| Single region | The functions and the database run in US East (the free-tier defaults), so each request from Dhaka crosses the ocean once. | Both sit in the same region, so API-to-database queries stay fast; moving both to Singapore is a settings change. |
 | No refresh tokens | Users sign in again after one day. | Acceptable for an MVP. |
 | In-memory rate-limit counters | Each serverless instance counts separately, so the limit is per instance rather than global. | A shared store (e.g. Redis) when the API scales out. |
 | Rate limits can't see the client's IP | Behind the Next.js rewrite the API sees the frontend's address, so limits are effectively per email: sign-up with new emails isn't limited, and five bad attempts a minute can briefly lock one account's sign-in. | Forward the client IP from the frontend (or an edge proxy) and trust that hop, then add an IP-only limit. |
