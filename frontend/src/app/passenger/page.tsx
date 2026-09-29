@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef } from "react";
 import { ActiveRideCard } from "@/components/passenger/active-ride-card";
 import { RideList } from "@/components/passenger/ride-list";
 import { RideRequestForm } from "@/components/passenger/ride-request-form";
@@ -9,11 +10,13 @@ import { ErrorState } from "@/components/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMe } from "@/hooks/use-auth";
 import { useActiveRide, useRideHistory } from "@/hooks/use-rides";
+import { readTripPrefill } from "@/lib/trip-link";
 
-export default function PassengerHome() {
+function PassengerHomeContent() {
   const { data: me } = useMe();
   const active = useActiveRide();
   const recent = useRideHistory(1);
+  const prefill = readTripPrefill(useSearchParams());
   const recentRides = recent.data?.items.slice(0, 3) ?? [];
 
   // When the live ride ends (completed, or cancelled by the driver), refresh
@@ -42,7 +45,15 @@ export default function PassengerHome() {
       ) : active.data ? (
         <ActiveRideCard ride={active.data} />
       ) : (
-        <RideRequestForm />
+        <RideRequestForm
+          // A new prefill (e.g. "Same trip again") starts a fresh form.
+          key={
+            prefill
+              ? `${prefill.pickupZone}-${prefill.destinationZone}-${prefill.seats}`
+              : "blank"
+          }
+          prefill={prefill}
+        />
       )}
 
       {recentRides.length > 0 && (
@@ -60,5 +71,14 @@ export default function PassengerHome() {
         </section>
       )}
     </div>
+  );
+}
+
+export default function PassengerHome() {
+  // useSearchParams needs a Suspense boundary to render on the server.
+  return (
+    <Suspense>
+      <PassengerHomeContent />
+    </Suspense>
   );
 }

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Car, MapPin, Users } from "lucide-react";
 import { FormError } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -18,7 +18,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { useCancelRide } from "@/hooks/use-rides";
 import { taka } from "@/lib/format";
-import { canCancel, ordinal, STATUS_LABEL } from "@/lib/ride-status";
+import { canCancel, isActive, ordinal, STATUS_LABEL } from "@/lib/ride-status";
+import { sameTripHref } from "@/lib/trip-link";
 import type { Ride } from "@/lib/types";
 import { RideProgress } from "./ride-progress";
 
@@ -32,6 +33,11 @@ export function ActiveRideCard({
 }) {
   const { pool, fare } = ride;
   const shared = !!pool && pool.coRiders.length > 0;
+  // Once the trip is over, describe it in the past tense.
+  const over = !isActive(ride.status);
+  const coRiderNames = pool?.coRiders
+    .map((c) => (c.seats > 1 ? `${c.name} (+${c.seats - 1})` : c.name))
+    .join(", ");
   const saving = fare.estimatedPaisa - fare.currentPaisa;
 
   return (
@@ -70,13 +76,10 @@ export function ActiveRideCard({
               <Users className="size-4 text-muted-foreground" />
               {shared ? (
                 <span>
-                  Sharing with{" "}
-                  {pool.coRiders
-                    .map((c) =>
-                      c.seats > 1 ? `${c.name} (+${c.seats - 1})` : c.name,
-                    )
-                    .join(", ")}
+                  {over ? "Shared with" : "Sharing with"} {coRiderNames}
                 </span>
+              ) : over ? (
+                <span className="text-muted-foreground">Rode alone</span>
               ) : (
                 <span className="text-muted-foreground">
                   Just you so far · {pool.seatsLeft} seat
@@ -86,7 +89,11 @@ export function ActiveRideCard({
             </p>
             <p className="flex items-center gap-2">
               <MapPin className="size-4 text-muted-foreground" />
-              <span>You&apos;re the {ordinal(pool.dropOffOrder)} drop-off</span>
+              <span>
+                {over
+                  ? `Dropped off ${ordinal(pool.dropOffOrder)}`
+                  : `You're the ${ordinal(pool.dropOffOrder)} drop-off`}
+              </span>
             </p>
           </div>
         ) : (
@@ -125,6 +132,19 @@ export function ActiveRideCard({
       {canCancel(ride.status) && (
         <CardFooter>
           <CancelRide rideId={ride.id} />
+        </CardFooter>
+      )}
+      {!isActive(ride.status) && (
+        <CardFooter className="flex-wrap gap-2">
+          <Link href="/passenger" className={buttonVariants()}>
+            Book another ride
+          </Link>
+          <Link
+            href={sameTripHref(ride)}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Same trip again
+          </Link>
         </CardFooter>
       )}
     </Card>
