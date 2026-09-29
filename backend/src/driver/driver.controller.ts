@@ -70,7 +70,22 @@ export class DriverController {
     return this.driver.start(user.id);
   }
 
-  @ApiOperation({ summary: 'Complete the trip; fares are paid in cash' })
+  @ApiOperation({
+    summary:
+      'Drop off the next passenger (they pay cash); the last drop-off ends the trip',
+  })
+  @Post('pool/drop-off/:rideId')
+  @HttpCode(HttpStatus.OK)
+  dropOff(
+    @CurrentUser() user: AuthUser,
+    @Param('rideId', ParseUUIDPipe) rideId: string,
+  ): Promise<PoolView> {
+    return this.driver.dropOff(user.id, rideId);
+  }
+
+  @ApiOperation({
+    summary: 'Drop off everyone still on board and complete the trip',
+  })
   @Post('pool/complete')
   @HttpCode(HttpStatus.OK)
   complete(@CurrentUser() user: AuthUser): Promise<PoolView> {

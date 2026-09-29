@@ -1,6 +1,7 @@
 import type { Prisma } from '../generated/prisma/client.js';
 import type { PoolStatus } from '../generated/prisma/enums.js';
 import { calculateFare } from '../fares/fare.calculator.js';
+import { planRoute, RouteView } from '../zones/route.js';
 
 const ZONE = { select: { code: true, name: true } } as const;
 
@@ -43,8 +44,10 @@ export interface PoolView {
     /** Locked fare once started; before that, the fare if it started now. */
     farePaisa: number;
     fareLocked: boolean;
+    droppedAt: Date | null;
   }[];
   totalFarePaisa: number;
+  route: RouteView;
   createdAt: Date;
   arrivedAt: Date | null;
   startedAt: Date | null;
@@ -66,6 +69,7 @@ export function toPoolView(pool: PoolWithMembers): PoolView {
       calculateFare({ distanceKm: m.distanceKm, seats: m.seats, passengers })
         .finalFarePaisa,
     fareLocked: m.fareLockedAt != null,
+    droppedAt: m.droppedAt,
   }));
 
   return {
@@ -76,10 +80,24 @@ export function toPoolView(pool: PoolWithMembers): PoolView {
     occupiedSeats: pool.occupiedSeats,
     members,
     totalFarePaisa: members.reduce((sum, m) => sum + m.farePaisa, 0),
+    route: planRoute(
+      pool.pickupZone.code,
+      members.map((m) => ({
+        zoneCode: m.destinationZone.code,
+        riders: [firstName(m.passenger.name)],
+        dropped: m.droppedAt != null,
+      })),
+      pool.status,
+    ),
     createdAt: pool.createdAt,
     arrivedAt: pool.arrivedAt,
     startedAt: pool.startedAt,
     completedAt: pool.completedAt,
     cancelledAt: pool.cancelledAt,
   };
+}
+
+/** Other passengers are shown by first name only (docs/assumptions.md §8). */
+export function firstName(fullName: string): string {
+  return fullName.trim().split(/\s+/)[0] ?? fullName;
 }
