@@ -152,4 +152,6 @@ export interface WaitingRequest {
   distanceKm: number;
   estimatedFarePaisa: number;
   waitingSince: string;
+  /** Why it can't join the driver's open trip (e.g. seats full), or null. */
+  blockedReason: string | null;
 }

@@ -96,6 +96,7 @@ flowchart TB
 - One repository, **two Vercel projects**, each with its own root directory. A push rebuilds only the project whose files changed.
 - The backend runs as **serverless functions**: instances start on demand and may be cold after idle periods.
 - Migrations run against Neon's **direct** connection (`DATABASE_URL_UNPOOLED`, set by the Neon integration; `DIRECT_URL` locally); the app uses the **pooled** one (`DATABASE_URL`) so short-lived functions don't exhaust connections.
+- **Production deploys migrate automatically:** `npm run build` first runs `scripts/migrate-on-vercel.mjs`, which applies pending migrations when `VERCEL_ENV` is `production`, before the new code goes live. Preview deploys skip it, because they share the production database and must not apply unmerged migrations. Migrations must stay backward compatible (add, don't drop), since the old version keeps serving until the new one is ready.
 
 ### 3.2 Local (Docker Compose)
 

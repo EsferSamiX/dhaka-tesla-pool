@@ -349,11 +349,19 @@ describe('Driver flow (e2e)', () => {
       .post(`/api/driver/requests/${nusrat.rideId}/accept`)
       .expect(200);
 
-    // Banani → Uttara would add a 4 km detour: not offered, not accepted.
+    // Banani → Uttara would add a 4 km detour: listed with the reason, and
+    // not accepted.
     const offered = await as(jashim).get('/api/driver/requests').expect(200);
-    const ids = offered.body.map((r: { id: string }) => r.id);
-    expect(ids).toContain(shirin.rideId);
-    expect(ids).not.toContain(uttara.rideId);
+    const reasons = Object.fromEntries(
+      offered.body.map((r: { id: string; blockedReason: string | null }) => [
+        r.id,
+        r.blockedReason,
+      ]),
+    );
+    expect(reasons[shirin.rideId]).toBeNull();
+    expect(reasons[uttara.rideId]).toBe(
+      'The detour would be too long for your passengers',
+    );
 
     const res = await as(jashim)
       .post(`/api/driver/requests/${uttara.rideId}/accept`)
@@ -367,6 +375,33 @@ describe('Driver flow (e2e)', () => {
       .post(`/api/driver/requests/${shirin.rideId}/accept`)
       .expect(409);
     expect(late.body.message).toBe('Your trip is under way; finish it first');
+  });
+
+  it("still lists a 4th rider once Bullet is full, but won't take them", async () => {
+    const jashim = await onlineDriver();
+    const riders = [
+      await rideFor('Nusrat', 'MOH'),
+      await rideFor('Rafiq', 'MOH'),
+      await rideFor('Shirin', 'MOH'),
+      await rideFor('Esfer', 'MOH'),
+    ];
+    for (const r of riders.slice(0, 3)) {
+      await as(jashim)
+        .post(`/api/driver/requests/${r.rideId}/accept`)
+        .expect(200);
+    }
+
+    const list = await as(jashim).get('/api/driver/requests').expect(200);
+    expect(list.body).toEqual([
+      expect.objectContaining({
+        id: riders[3].rideId,
+        blockedReason: "Your seats are full; you can't add more",
+      }),
+    ]);
+    const res = await as(jashim)
+      .post(`/api/driver/requests/${riders[3].rideId}/accept`)
+      .expect(409);
+    expect(res.body.message).toBe('Not enough seats left in the vehicle');
   });
 
   it('sends passengers back to waiting when the driver cancels', async () => {

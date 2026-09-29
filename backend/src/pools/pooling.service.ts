@@ -213,11 +213,12 @@ export class PoolingService {
   }
 
   /**
-   * Whether a waiting ride would fit an open pool right now. Used to show a
-   * driver only the requests they can actually add; `join` re-checks under
-   * the lock before seating anyone.
+   * Why a waiting ride can't join an open pool right now, or null if it can.
+   * Lets a driver see every request from their pickup zone, with the ones
+   * they can't add explained; `join` re-checks under the lock before seating
+   * anyone.
    */
-  async fits(
+  async whyNotFit(
     pool: {
       id: string;
       capacity: number;
@@ -233,9 +234,15 @@ export class PoolingService {
       createdAt: Date;
     },
     members: Rider[],
-  ): Promise<boolean> {
-    if (ride.pickupZoneId !== pool.pickupZoneId) return false;
-    if (pool.occupiedSeats + ride.seats > pool.capacity) return false;
+  ): Promise<string | null> {
+    if (ride.pickupZoneId !== pool.pickupZoneId) {
+      return 'Starts in a different zone';
+    }
+    const free = pool.capacity - pool.occupiedSeats;
+    if (free === 0) return "Your seats are full; you can't add more";
+    if (ride.seats > free) {
+      return `Needs ${ride.seats} seats; only ${free} free`;
+    }
     const stops = planDropOffs(
       [
         ...members,
@@ -248,7 +255,9 @@ export class PoolingService {
       ],
       await this.distance(),
     );
-    return isCompatible(stops);
+    return isCompatible(stops)
+      ? null
+      : 'The detour would be too long for your passengers';
   }
 
   private distance(): Promise<DistanceFn> {

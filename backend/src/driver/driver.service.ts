@@ -30,6 +30,8 @@ export interface WaitingRequest {
   distanceKm: number;
   estimatedFarePaisa: number;
   waitingSince: Date;
+  /** Why the driver can't add it to their open trip, or null if they can. */
+  blockedReason: string | null;
 }
 
 interface LockedMember {
@@ -104,22 +106,22 @@ export class DriverService {
         destinationZone: { select: { code: true, name: true } },
       },
     });
-    let visible = rides;
+    // With passengers on board, rides that don't fit are still listed (so a
+    // full Tesla sees who is waiting) but marked with the reason.
+    let blocked: (string | null)[] = rides.map(() => null);
     if (openPool) {
-      // With passengers already on board, show only rides that would fit.
       const members = openPool.members.map((m) => ({
         id: m.id,
         destinationZoneId: m.rideRequest.destinationZoneId,
         directKm: m.distanceKm,
         requestedAt: m.rideRequest.createdAt,
       }));
-      const fits = await Promise.all(
-        rides.map((r) => this.pooling.fits(openPool, r, members)),
+      blocked = await Promise.all(
+        rides.map((r) => this.pooling.whyNotFit(openPool, r, members)),
       );
-      visible = rides.filter((_, i) => fits[i]);
     }
 
-    return visible.map((r) => ({
+    return rides.map((r, i) => ({
       id: r.id,
       passenger: r.passenger,
       pickupZone: r.pickupZone,
@@ -129,6 +131,7 @@ export class DriverService {
       distanceKm: r.distanceKm,
       estimatedFarePaisa: r.estimatedFarePaisa,
       waitingSince: r.createdAt,
+      blockedReason: blocked[i],
     }));
   }
 
