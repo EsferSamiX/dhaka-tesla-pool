@@ -106,7 +106,7 @@ export function toRideView(ride: RideWithPool): RideView {
           coRiders: pool.members
             .filter((m) => m.rideRequest.id !== ride.id)
             .map((m) => ({
-              name: m.rideRequest.passenger.name,
+              name: firstName(m.rideRequest.passenger.name),
               seats: m.seats,
             })),
           seatsLeft: pool.capacity - pool.occupiedSeats,
@@ -115,4 +115,9 @@ export function toRideView(ride: RideWithPool): RideView {
     cancelReason: ride.cancelReason,
     createdAt: ride.createdAt,
   };
+}
+
+/** Co-riders are shown by first name only (docs/assumptions.md §8). */
+function firstName(fullName: string): string {
+  return fullName.trim().split(/\s+/)[0] ?? fullName;
 }

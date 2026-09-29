@@ -363,3 +363,4 @@ A global exception filter returns every error in one shape:
 | Single region | Latency depends on the Vercel and Neon regions chosen. | Both set to the region closest to Dhaka available on the free tier. |
 | No refresh tokens | Users sign in again after one day. | Acceptable for an MVP. |
 | In-memory rate-limit counters | Each serverless instance counts separately, so the limit is per instance rather than global. | A shared store (e.g. Redis) when the API scales out. |
+| Rate limits can't see the client's IP | Behind the Next.js rewrite the API sees the frontend's address, so limits are effectively per email: sign-up with new emails isn't limited, and five bad attempts a minute can briefly lock one account's sign-in. | Forward the client IP from the frontend (or an edge proxy) and trust that hop, then add an IP-only limit. |

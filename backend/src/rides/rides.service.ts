@@ -6,12 +6,13 @@ import {
 } from '@nestjs/common';
 import { calculateFare } from '../fares/fare.calculator.js';
 import { Prisma } from '../generated/prisma/client.js';
+import type { RideStatus } from '../generated/prisma/enums.js';
 import { PoolingService } from '../pools/pooling.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ZonesService } from '../zones/zones.service.js';
 import { CreateRideDto, PaginationDto } from './dto/ride.dto.js';
 import { recordStatusChange } from './ride-history.js';
-import { assertTransition, PASSENGER_CANCELLABLE } from './ride-state.js';
+import { assertTransition } from './ride-state.js';
 import { RIDE_INCLUDE, RideView, toRideView } from './ride.view.js';
 
 export interface TimelineEntry {
@@ -154,52 +155,50 @@ export class RidesService {
   ): Promise<RideView> {
     await this.assertOwner(passengerId, rideId);
 
-    await this.prisma.$transaction(async (tx) => {
-      // Lock the pool first (the same order every writer uses), so a seat
-      // can't be released while someone else is changing that pool.
-      const seat = await tx.poolMember.findFirst({
-        where: { rideRequestId: rideId, leftAt: null },
-        select: { poolId: true },
-      });
-      if (seat) {
-        await tx.$queryRaw`SELECT id FROM pools WHERE id = ${seat.poolId}::uuid FOR UPDATE`;
-      }
+    // A driver may seat this ride in a pool between our first read and our
+    // locks. If that happens the attempt rolls back and runs again, so locks
+    // are always taken pool → ride, like every other writer.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const done = await this.prisma.$transaction(async (tx) => {
+        const seen = await tx.poolMember.findFirst({
+          where: { rideRequestId: rideId, leftAt: null },
+          select: { poolId: true },
+        });
+        if (seen) {
+          await tx.$queryRaw`SELECT id FROM pools WHERE id = ${seen.poolId}::uuid FOR UPDATE`;
+        }
+        const [ride] = await tx.$queryRaw<{ status: RideStatus }[]>`
+          SELECT status FROM ride_requests WHERE id = ${rideId}::uuid FOR UPDATE`;
 
-      const ride = await tx.rideRequest.findUniqueOrThrow({
-        where: { id: rideId },
-        select: { status: true },
-      });
-      assertTransition(ride.status, 'CANCELLED');
+        const membership = await tx.poolMember.findFirst({
+          where: { rideRequestId: rideId, leftAt: null },
+          select: { id: true, poolId: true, seats: true },
+        });
+        if ((membership?.poolId ?? null) !== (seen?.poolId ?? null)) {
+          return false; // moved to another pool meanwhile: retry
+        }
 
-      // Conditional update: fails if the status moved on since we read it.
-      const { count } = await tx.rideRequest.updateMany({
-        where: { id: rideId, status: { in: [...PASSENGER_CANCELLABLE] } },
-        data: { status: 'CANCELLED', cancelReason: reason },
-      });
-      if (count === 0) {
-        throw new ConflictException('The ride changed; please try again');
-      }
+        assertTransition(ride.status, 'CANCELLED');
+        await tx.rideRequest.update({
+          where: { id: rideId },
+          data: { status: 'CANCELLED', cancelReason: reason },
+        });
+        if (membership) await this.releaseSeat(tx, membership);
 
-      const membership = await tx.poolMember.findFirst({
-        where: { rideRequestId: rideId, leftAt: null },
-        select: { id: true, poolId: true, seats: true },
+        await recordStatusChange(tx, {
+          rideRequestId: rideId,
+          from: ride.status,
+          to: 'CANCELLED',
+          actorType: 'PASSENGER',
+          actorId: passengerId,
+          poolId: membership?.poolId,
+          reason: reason ?? 'Cancelled by passenger',
+        });
+        return true;
       });
-      if (membership) {
-        await this.releaseSeat(tx, membership);
-      }
-
-      await recordStatusChange(tx, {
-        rideRequestId: rideId,
-        from: ride.status,
-        to: 'CANCELLED',
-        actorType: 'PASSENGER',
-        actorId: passengerId,
-        poolId: membership?.poolId,
-        reason: reason ?? 'Cancelled by passenger',
-      });
-    });
-
-    return this.getOwn(passengerId, rideId);
+      if (done) return this.getOwn(passengerId, rideId);
+    }
+    throw new ConflictException('The ride changed; please try again');
   }
 
   /** Frees the seats; cancels the pool if nobody is left in it. */
