@@ -21,6 +21,10 @@ npm-debug.log*
 # test coverage
 coverage/
 
+# browser test output
+test-results/
+playwright-report/
+
 # OS / editor
 .DS_Store
 .vscode/
