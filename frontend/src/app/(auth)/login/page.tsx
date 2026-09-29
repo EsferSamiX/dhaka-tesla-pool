@@ -27,9 +27,22 @@ const DEMO_ACCOUNTS = [
   { name: "Shirin", role: "Passenger", email: "shirin@dhakatesla.test" },
 ];
 
-/** Only follow same-site paths from ?next=, never another origin. */
+/**
+ * Only follow same-site paths from ?next=, never another origin. Parsing it
+ * as a URL catches tricks a prefix check misses, such as "/\evil.com", which
+ * browsers read as "//evil.com".
+ */
 function safeNext(next: string | null): string | null {
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : null;
+  if (!next || !next.startsWith("/") || typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const base = window.location.origin;
+    const url = new URL(next, base);
+    return url.origin === base ? url.pathname + url.search : null;
+  } catch {
+    return null;
+  }
 }
 
 function LoginForm() {
