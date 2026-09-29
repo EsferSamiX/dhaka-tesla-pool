@@ -71,7 +71,7 @@ Every assumption made along the way is written down in [docs/assumptions.md](doc
 **Driver**
 - Go online/offline; see waiting requests only while online.
 - Accept a request (starts a pool) or add a fitting request to the open pool.
-- Arrive → start (fares lock) → **drop passengers off one by one** in drop-off order (each pays cash and their ride completes; the last drop-off ends the trip), or cancel before the start.
+- Arrive → start (fares lock) → **drop passengers off one by one** in drop-off order (each pays cash and their ride completes; the last drop-off ends the trip), or **Finish trip** to drop off everyone left at once. Cancel is possible before the start.
 - Current trip view with seat boxes, the trip line, each rider's fare, and cash collected so far. Trip history.
 
 **Platform**
