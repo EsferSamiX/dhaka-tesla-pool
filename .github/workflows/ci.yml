@@ -64,6 +64,14 @@ jobs:
       - name: Check formatting
         run: npx prettier --check "src/**/*.ts" "test/**/*.ts"
 
+      - name: Check API docs metadata is up to date
+        run: |
+          npm run docs:metadata
+          git diff --exit-code -- src/metadata.ts || {
+            echo "::error::src/metadata.ts is stale. Run 'npm run docs:metadata' in backend/ and commit it."
+            exit 1
+          }
+
       - name: Unit tests
         run: npm test
 

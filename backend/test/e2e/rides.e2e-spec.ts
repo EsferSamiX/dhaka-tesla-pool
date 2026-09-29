@@ -53,7 +53,7 @@ describe('Passenger rides (e2e)', () => {
       imports: [AppModule],
     }).compile();
     app = moduleRef.createNestApplication();
-    configureApp(app);
+    await configureApp(app);
     await app.init();
     prisma = app.get(PrismaService);
   });

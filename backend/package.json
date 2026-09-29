@@ -6,6 +6,9 @@
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "postinstall": "prisma generate",
     "build": "nest build",
@@ -24,6 +27,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "docs:metadata": "tsx scripts/generate-swagger-metadata.ts && prettier --write src/metadata.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -33,7 +37,6 @@
     "@nestjs/jwt": "12.0.2",
     "@nestjs/platform-express": "^12.0.1",
     "@nestjs/swagger": "12.0.2",
-    "@nestjs/throttler": "6.7.1",
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "bcryptjs": "3.0.3",
