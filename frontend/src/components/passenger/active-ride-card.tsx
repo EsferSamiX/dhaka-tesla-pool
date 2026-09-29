@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { Car, MapPin, Users } from "lucide-react";
 import { FormError } from "@/components/states";
+import { SeatBoxes } from "@/components/trip/seat-boxes";
+import { TripRoute } from "@/components/trip/trip-route";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -36,7 +38,10 @@ export function ActiveRideCard({
   // Once the trip is over, describe it in the past tense.
   const over = !isActive(ride.status);
   const coRiderNames = pool?.coRiders
-    .map((c) => (c.seats > 1 ? `${c.name} (+${c.seats - 1})` : c.name))
+    .map((c) => {
+      const name = c.seats > 1 ? `${c.name} (+${c.seats - 1})` : c.name;
+      return c.dropped && !over ? `${name} (dropped off)` : name;
+    })
     .join(", ");
   const saving = fare.estimatedPaisa - fare.currentPaisa;
 
@@ -62,6 +67,13 @@ export function ActiveRideCard({
 
       <CardContent className="space-y-5">
         <RideProgress status={ride.status} />
+
+        {pool && !over && (
+          <SeatBoxes capacity={pool.capacity} holders={pool.seatMap} />
+        )}
+        {ride.status !== "CANCELLED" && (
+          <TripRoute route={ride.route} showTesla={!!pool} />
+        )}
 
         {pool ? (
           <div className="space-y-3 rounded-lg border p-3 text-sm">

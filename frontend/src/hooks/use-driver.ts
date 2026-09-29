@@ -92,6 +92,16 @@ export function useTripAction() {
   });
 }
 
+/** Drops one passenger off; the last drop-off completes the trip. */
+export function useDropOff() {
+  const refresh = useRefreshDriver();
+  return useMutation({
+    mutationFn: (rideId: string) =>
+      api<Pool>(`/driver/pool/drop-off/${rideId}`, { method: "POST" }),
+    onSuccess: (pool) => refresh(pool.status === "COMPLETED" ? null : pool),
+  });
+}
+
 export function useCancelTrip() {
   const refresh = useRefreshDriver();
   return useMutation({
