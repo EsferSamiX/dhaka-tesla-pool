@@ -420,7 +420,3 @@ Every error looks the same: `{ "statusCode", "error", "message", "requestId" }`.
 - **`pre-release`:** cut from `master` once the MVP was integrated; used for deployment fixes, docs and final checks.
 - **`release/v1.0.0`:** cut from `pre-release`; the version shown in the video and the deployment.
 - **Commits** follow `<type>(<scope>): <description>`, for example `feat(pool): enforce Bullet's seat capacity` or `fix(rides): lock pool then ride when cancelling`.
-
----
-
-<sub>Built for the RoBenDevs internship challenge. Story, cast and Bullet belong to the brief; the code is mine to explain.</sub>
