@@ -305,7 +305,7 @@ A ride request's seat in a pool. Holds the drop-off order and the full fare brea
 | `per_km_rate_paisa` | `integer` | ✓ | | Set when the fare is locked |
 | `distance_charge_paisa` | `integer` | ✓ | | Set when the fare is locked |
 | `subtotal_paisa` | `integer` | ✓ | | Set when the fare is locked |
-| `pool_discount_bps` | `smallint` | ✓ | | 2000 if pooled, 0 if solo |
+| `pool_discount_bps` | `smallint` | ✓ | | 0 alone, 2000 with 2 passengers, 3000 with 3 or more |
 | `pool_discount_paisa` | `integer` | ✓ | | Set when the fare is locked |
 | `final_fare_paisa` | `integer` | ✓ | | What the passenger pays |
 | `fare_locked_at` | `timestamptz` | ✓ | | Equals the pool's `started_at` |

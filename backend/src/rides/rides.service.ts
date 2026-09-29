@@ -46,7 +46,7 @@ export class RidesService {
     const estimate = calculateFare({
       distanceKm: trip.distanceKm,
       seats: dto.seats,
-      pooled: false,
+      passengers: 1,
     });
 
     let id: string;

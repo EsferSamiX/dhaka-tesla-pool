@@ -88,7 +88,10 @@ export interface RideDetail extends Ride {
 export interface FareEstimate {
   distanceKm: number;
   soloFarePaisa: number;
+  /** Shared by 2 passengers (20% off). */
   pooledFarePaisa: number;
+  /** Shared by 3 or more (30% off). */
+  fullPoolFarePaisa: number;
 }
 
 export type PoolStatus =

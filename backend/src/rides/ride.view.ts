@@ -77,7 +77,7 @@ export function toRideView(ride: RideWithPool): RideView {
     currentPaisa = calculateFare({
       distanceKm: ride.distanceKm,
       seats: ride.seats,
-      pooled: pool.members.length >= 2,
+      passengers: pool.members.length,
     }).finalFarePaisa;
   }
 

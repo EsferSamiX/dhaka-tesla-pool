@@ -201,25 +201,35 @@ function FareEstimatePanel({
   if (estimate.isPending) return <Skeleton className="h-16 w-full" />;
   if (estimate.isError) return <FormError error={estimate.error} />;
 
-  const { distanceKm, soloFarePaisa, pooledFarePaisa } = estimate.data;
+  const { distanceKm, soloFarePaisa, pooledFarePaisa, fullPoolFarePaisa } =
+    estimate.data;
   return (
     <div
-      className="grid grid-cols-2 gap-3 rounded-lg bg-muted p-3 text-sm"
+      className="grid grid-cols-3 gap-3 rounded-lg bg-muted p-3 text-sm"
       aria-live="polite"
     >
-      <div>
-        <p className="text-muted-foreground">Alone · {distanceKm} km</p>
-        <p className="text-lg font-semibold">{taka(soloFarePaisa)}</p>
-      </div>
-      <div>
-        <p className="text-muted-foreground">If shared</p>
-        <p className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
-          {taka(pooledFarePaisa)}
-        </p>
-      </div>
-      <p className="col-span-2 text-xs text-muted-foreground">
-        You never pay more than the alone price. The final fare is set when the
-        trip starts.
+      {[
+        { label: "Alone", price: soloFarePaisa, note: `${distanceKm} km` },
+        { label: "With 2", price: pooledFarePaisa, note: "20% off" },
+        { label: "With 3+", price: fullPoolFarePaisa, note: "30% off" },
+      ].map((option, i) => (
+        <div key={option.label}>
+          <p className="text-muted-foreground">{option.label}</p>
+          <p
+            className={
+              i === 0
+                ? "text-lg font-semibold"
+                : "text-lg font-semibold text-emerald-600 dark:text-emerald-400"
+            }
+          >
+            {taka(option.price)}
+          </p>
+          <p className="text-xs text-muted-foreground">{option.note}</p>
+        </div>
+      ))}
+      <p className="col-span-3 text-xs text-muted-foreground">
+        The more people share your Tesla, the less everyone pays. You never pay
+        more than the alone price; the final fare is set when the trip starts.
       </p>
     </div>
   );

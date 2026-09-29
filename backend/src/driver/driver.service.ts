@@ -249,20 +249,19 @@ export class DriverService {
     );
   }
 
-  /** Locks every passenger's fare: pooled if two or more are on board. */
+  /** Locks every passenger's fare at the rate for everyone now on board. */
   start(driverId: string): Promise<PoolView> {
     return this.advance(driverId, 'STARTED', async (tx, poolId, members) => {
       if (members.length === 0) {
         throw new ConflictException('No passengers to start the trip with');
       }
       const now = new Date();
-      const pooled = members.length >= 2;
 
       for (const m of members) {
         const fare = calculateFare({
           distanceKm: m.distanceKm,
           seats: m.seats,
-          pooled,
+          passengers: members.length,
         });
         await tx.poolMember.update({
           where: { id: m.id },

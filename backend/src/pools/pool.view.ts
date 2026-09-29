@@ -53,7 +53,7 @@ export interface PoolView {
 }
 
 export function toPoolView(pool: PoolWithMembers): PoolView {
-  const pooled = pool.members.length >= 2;
+  const passengers = pool.members.length;
   const members = pool.members.map((m) => ({
     rideId: m.rideRequest.id,
     passenger: m.rideRequest.passenger,
@@ -63,7 +63,7 @@ export function toPoolView(pool: PoolWithMembers): PoolView {
     dropOffOrder: m.dropOffOrder,
     farePaisa:
       m.finalFarePaisa ??
-      calculateFare({ distanceKm: m.distanceKm, seats: m.seats, pooled })
+      calculateFare({ distanceKm: m.distanceKm, seats: m.seats, passengers })
         .finalFarePaisa,
     fareLocked: m.fareLockedAt != null,
   }));

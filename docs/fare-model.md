@@ -28,7 +28,7 @@ The brief asks for a fare model that is simple, testable, and can be checked **b
 
 | Goal | How the model meets it |
 |---|---|
-| **Hand-checkable** | Whole-kilometre distances and round parameters produce whole-taka fares. |
+| **Hand-checkable** | Whole-kilometre distances and round parameters produce whole-taka fares, or half-taka with the 30% full-Tesla rate. |
 | **Fair to each passenger** | Each passenger pays for their own direct distance, never another passenger's detour. |
 | **Predictable** | A passenger never pays more than the estimate shown when they requested the ride. |
 
@@ -47,8 +47,8 @@ Expanded, with seat count:
 ```
 distanceCharge = distanceKm × perKmRate
 subtotal       = (baseFare + distanceCharge) × seats
-poolDiscount   = subtotal × poolDiscountRate      if the pool has 2+ passengers at start
-               = 0                                 otherwise
+poolDiscount   = subtotal × poolDiscountRate(passengers)
+passengers     = distinct riders in the pool when the trip starts
 passengerFare  = subtotal − poolDiscount
 ```
 
@@ -56,7 +56,8 @@ passengerFare  = subtotal − poolDiscount
 |---|---|
 | `distanceKm` | Direct distance from pickup zone to the passenger's destination zone, from the [distance table](assumptions.md#32-distance-table-km). |
 | `seats` | Seats booked by this passenger (1–3). |
-| **Pool has 2+ passengers** | At least two distinct ride requests are active members of the pool when the driver starts the trip. Seats booked by the same passenger count once. |
+| `passengers` | Distinct ride requests that are active members of the pool when the driver starts the trip. Seats booked by the same passenger count once. |
+| `poolDiscountRate` | The same rate for **everyone** on board: 0% alone, 20% with 2 passengers, 30% with 3 or more. |
 
 ---
 
@@ -66,7 +67,8 @@ passengerFare  = subtotal − poolDiscount
 |---|---:|---:|---|
 | `baseFare` | ৳30 | `3000` | paisa |
 | `perKmRate` | ৳15 per km | `1500` | paisa per km |
-| `poolDiscountRate` | 20% | `2000` | basis points (1 bp = 0.01%) |
+| `poolDiscountRate`, 2 passengers | 20% | `2000` | basis points (1 bp = 0.01%) |
+| `poolDiscountRate`, 3 or more | 30% | `3000` | basis points |
 
 Parameters are defined in one place in the backend and **copied onto each ride when its fare is locked**, so changing a rate later never alters the history of completed rides.
 
@@ -102,15 +104,17 @@ Pooling saves Nusrat ৳15 and Rafiq ৳18.
 
 ### 4.3 Shirin takes the last seat
 
-Shirin (Banani → Mohakhali, 3 km) joins Nusrat and Rafiq, filling all three of Bullet's seats.
+Shirin (Banani → Mohakhali, 3 km) joins Nusrat and Rafiq, filling all three of Bullet's seats. With three on board, **everyone's** discount rises from 20% to 30%.
 
-| Passenger | Subtotal | Discount | **Final fare** |
+| Passenger | Subtotal | Discount (30%) | **Final fare** |
 |---|---:|---:|---:|
-| Nusrat | ৳75 | − ৳15 | **৳60** |
-| Shirin | ৳75 | − ৳15 | **৳60** |
-| Rafiq | ৳90 | − ৳18 | **৳72** |
+| Nusrat | ৳75 | − ৳22.50 | **৳52.50** |
+| Shirin | ৳75 | − ৳22.50 | **৳52.50** |
+| Rafiq | ৳90 | − ৳27 | **৳63** |
 
-The discount rate is flat: a third passenger does not increase anyone's discount. **Jashim's total:** ৳192.
+**Jashim's total:** ৳168.
+
+**Why a bigger discount for a full Tesla:** it gives riders a reason to share, and a full vehicle still earns the driver more per trip than a half-empty one (৳168 for three riders against ৳132 for two here). If Shirin cancels before the start, Nusrat and Rafiq return to the 20% rate (৳60 and ৳72).
 
 ### 4.4 One passenger, two seats
 
@@ -159,7 +163,7 @@ All amounts are stored and calculated as **integers in paisa** (৳1 = 100 paisa
 | Rule | Detail |
 |---|---|
 | Column type | PostgreSQL `INTEGER`; the maximum (≈ ৳21 million) far exceeds any single fare. |
-| Percentages | Stored as integer basis points; `discount = subtotal × 2000 / 10000`. |
+| Percentages | Stored as integer basis points; `discount = subtotal × 2000 / 10000` (or `3000` for a full Tesla). |
 | Rounding | Round half up to the nearest paisa. With the current parameters every result is already a whole number of paisa, so rounding never triggers, but the rule is defined in case parameters change. |
 | Display | Converted to taka only in the UI: `6000` → `৳60.00`. |
 | Negative values | Not allowed; enforced with a `CHECK (amount >= 0)` constraint. |
@@ -192,17 +196,20 @@ Each pool member stores a full breakdown, not just the final number, so any fare
 
 These cases form the unit test suite for the fare calculation. Amounts are in paisa.
 
-| # | Case | km | Seats | Pooled | Expected |
-|---|---|---:|---:|:---:|---:|
-| F1 | Nusrat pooled | 3 | 1 | Yes | `6000` |
-| F2 | Rafiq pooled | 4 | 1 | Yes | `7200` |
-| F3 | Nusrat solo | 3 | 1 | No | `7500` |
-| F4 | Rafiq solo | 4 | 1 | No | `9000` |
-| F5 | Rafiq, 2 seats, pooled | 4 | 2 | Yes | `14400` |
-| F6 | Rafiq, 2 seats, solo | 4 | 2 | No | `18000` |
-| F7 | Longest trip (Uttara → Dhanmondi), 3 seats, solo | 19 | 3 | No | `94500` |
-| F8 | Final fare never exceeds estimate | any | any | any | `final ≤ estimate` |
-| F9 | Invalid input (0 seats, 4 seats, 0 km, negative km) | — | — | — | rejected |
+| # | Case | km | Seats | Passengers | Expected |
+|---|---|---:|---:|---:|---:|
+| F1 | Nusrat, shared by 2 | 3 | 1 | 2 | `6000` |
+| F2 | Rafiq, shared by 2 | 4 | 1 | 2 | `7200` |
+| F3 | Nusrat alone | 3 | 1 | 1 | `7500` |
+| F4 | Rafiq alone | 4 | 1 | 1 | `9000` |
+| F5 | Rafiq, 2 seats, shared by 2 | 4 | 2 | 2 | `14400` |
+| F6 | Rafiq, 2 seats, alone | 4 | 2 | 1 | `18000` |
+| F7 | Longest trip (Uttara → Dhanmondi), 3 seats, alone | 19 | 3 | 1 | `94500` |
+| F8 | More passengers never cost more; final ≤ estimate | any | any | 1 → 2 → 3 | `full ≤ shared ≤ alone` |
+| F9 | Invalid input (0 or 4 seats, 0 or negative km, 0 passengers) | — | — | — | rejected |
+| F10 | Nusrat, full Tesla | 3 | 1 | 3 | `5250` |
+| F11 | Rafiq, full Tesla | 4 | 1 | 3 | `6300` |
+| F12 | Bashundhara → Gulshan 1, full Tesla | 5 | 1 | 3 | `7350` |
 
 ---
 

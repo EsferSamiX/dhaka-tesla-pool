@@ -36,7 +36,7 @@ describe('Zones & fares (e2e)', () => {
     });
   });
 
-  it("estimates Nusrat's trip: ৳75 alone, ৳60 shared", async () => {
+  it("estimates Nusrat's trip: ৳75 alone, ৳60 shared, ৳52.50 in a full Tesla", async () => {
     const res = await estimate({
       pickupZone: 'BAN',
       destinationZone: 'MOH',
@@ -47,11 +47,13 @@ describe('Zones & fares (e2e)', () => {
       distanceKm: 3,
       soloFarePaisa: 7500,
       pooledFarePaisa: 6000,
+      fullPoolFarePaisa: 5250,
       breakdown: {
         baseFarePaisa: 3000,
         distanceChargePaisa: 4500,
         subtotalPaisa: 7500,
         poolDiscountBps: 2000,
+        fullPoolDiscountBps: 3000,
       },
     });
   });
@@ -67,6 +69,7 @@ describe('Zones & fares (e2e)', () => {
       distanceKm: 4,
       soloFarePaisa: 9000,
       pooledFarePaisa: 7200,
+      fullPoolFarePaisa: 6300,
     });
   });
 

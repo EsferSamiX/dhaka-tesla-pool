@@ -40,7 +40,14 @@ export function CurrentTrip({ pool }: { pool: Pool }) {
   const next = NEXT[pool.status];
   const canCancel =
     pool.status === "MATCHED" || pool.status === "DRIVER_ARRIVED";
-  const shared = pool.members.length >= 2;
+  const riders = pool.members.length;
+  const shared = riders >= 2;
+  const badge =
+    riders >= 3
+      ? "Full · 30% off each"
+      : riders === 2
+        ? "Shared · 20% off each"
+        : "Solo";
 
   return (
     <Card>
@@ -51,9 +58,7 @@ export function CurrentTrip({ pool }: { pool: Pool }) {
           {pool.capacity} seats taken
         </CardDescription>
         <CardAction>
-          <Badge variant={shared ? "default" : "secondary"}>
-            {shared ? "Shared · 20% off each" : "Solo"}
-          </Badge>
+          <Badge variant={shared ? "default" : "secondary"}>{badge}</Badge>
         </CardAction>
       </CardHeader>
 

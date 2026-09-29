@@ -50,7 +50,7 @@
 | `POST` | `/api/auth/signout` | User | Clear the auth cookie |
 | `GET` | `/api/auth/me` | User | Current user (and vehicle, for drivers) |
 | `GET` | `/api/zones` | Public | List all zones |
-| `POST` | `/api/fares/estimate` | Public | Estimate solo and pooled fares for a trip |
+| `POST` | `/api/fares/estimate` | Public | Fare for a trip alone, shared by 2, and by 3 or more |
 | `POST` | `/api/rides` | Passenger | Request a ride |
 | `GET` | `/api/rides/active` | Passenger | Current ride, if any |
 | `GET` | `/api/rides` | Passenger | Ride history |
@@ -167,11 +167,13 @@ Shows the price before requesting. The solo fare is the maximum the passenger ca
   "distanceKm": 3,
   "soloFarePaisa": 7500,
   "pooledFarePaisa": 6000,
+  "fullPoolFarePaisa": 5250,
   "breakdown": {
     "baseFarePaisa": 3000,
     "distanceChargePaisa": 4500,
     "subtotalPaisa": 7500,
-    "poolDiscountBps": 2000
+    "poolDiscountBps": 2000,
+    "fullPoolDiscountBps": 3000
   }
 }
 ```
@@ -446,7 +448,7 @@ Nusrat and Rafiq share Bullet on the morning of the story.
 | # | Who | Call | Result |
 |---|---|---|---|
 | 1 | Jashim | `PATCH /api/driver/status` `{ isOnline: true }` | Online |
-| 2 | Nusrat | `POST /api/fares/estimate` BAN → MOH | Solo ৳75, pooled ৳60 |
+| 2 | Nusrat | `POST /api/fares/estimate` BAN → MOH | Alone ৳75, with 2 ৳60, with 3+ ৳52.50 |
 | 3 | Nusrat | `POST /api/rides` BAN → MOH | `REQUESTED` (no open pool yet) |
 | 4 | Jashim | `GET /api/driver/requests` | Sees Nusrat |
 | 5 | Jashim | `POST /api/driver/requests/{nusrat}/accept` | Pool created; Nusrat `MATCHED` |
