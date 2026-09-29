@@ -3,9 +3,11 @@
 import {
   keepPreviousData,
   useMutation,
+  useMutationState,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { api } from "@/lib/api";
 import { isActive } from "@/lib/ride-status";
 import type { FareEstimate, Page, Ride, RideDetail, Zone } from "@/lib/types";
@@ -103,9 +105,12 @@ export function useRequestRide() {
   });
 }
 
+const CANCEL_KEY = ["rides", "cancel"] as const;
+
 export function useCancelRide() {
   const qc = useQueryClient();
   return useMutation({
+    mutationKey: CANCEL_KEY,
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
       api<Ride>(`/rides/${id}/cancel`, {
         method: "POST",
@@ -113,4 +118,17 @@ export function useCancelRide() {
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["rides"] }),
   });
+}
+
+/**
+ * IDs of rides the passenger cancelled (or is cancelling) in this tab. The
+ * ride can drop out of "active" before the cancel request itself finishes.
+ */
+export function useRidesCancelledHere(): string[] {
+  const ids = useMutationState({
+    filters: { mutationKey: CANCEL_KEY },
+    // A mutation that hasn't been called yet has no variables.
+    select: (m) => (m.state.variables as { id?: string } | undefined)?.id,
+  });
+  return useMemo(() => ids.filter((id): id is string => !!id), [ids]);
 }
