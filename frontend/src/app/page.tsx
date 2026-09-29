@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { ApiStatus } from "@/components/api-status";
 import { Logo } from "@/components/logo";
 import { HOME_PROMOS, PromoCarousel } from "@/components/promo-carousel";
 import { buttonVariants } from "@/components/ui/button";
@@ -43,7 +42,6 @@ export default function Home() {
         </div>
       </div>
       <PromoCarousel promos={HOME_PROMOS} className="w-full max-w-2xl" />
-      <ApiStatus />
     </div>
   );
 }
