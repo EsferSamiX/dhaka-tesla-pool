@@ -22,6 +22,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFareEstimate, useRequestRide, useZones } from "@/hooks/use-rides";
 import { taka } from "@/lib/format";
+import type { TripPrefill } from "@/lib/trip-link";
 import type { Zone } from "@/lib/types";
 
 function ZoneSelect({
@@ -59,12 +60,14 @@ function ZoneSelect({
   );
 }
 
-export function RideRequestForm() {
+export function RideRequestForm({ prefill }: { prefill?: TripPrefill }) {
   const zones = useZones();
   const request = useRequestRide();
-  const [pickupZone, setPickup] = useState("");
-  const [destinationZone, setDestination] = useState("");
-  const [seats, setSeats] = useState(1);
+  const [pickupZone, setPickup] = useState(prefill?.pickupZone ?? "");
+  const [destinationZone, setDestination] = useState(
+    prefill?.destinationZone ?? "",
+  );
+  const [seats, setSeats] = useState(prefill?.seats ?? 1);
   const [pickupNote, setNote] = useState("");
 
   const sameZone = !!pickupZone && pickupZone === destinationZone;
