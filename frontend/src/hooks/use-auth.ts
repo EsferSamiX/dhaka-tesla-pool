@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
+import { announceAuth } from "@/lib/auth-sync";
 import type { Role, User } from "@/lib/types";
 
 export const ME_KEY = ["me"] as const;
@@ -38,7 +39,10 @@ export function useSignIn() {
   return useMutation({
     mutationFn: (input: SignInInput) =>
       api<User>("/auth/signin", { method: "POST", body: input }),
-    onSuccess: (user) => qc.setQueryData(ME_KEY, user),
+    onSuccess: (user) => {
+      qc.setQueryData(ME_KEY, user);
+      announceAuth("signed-in");
+    },
   });
 }
 
@@ -47,7 +51,10 @@ export function useSignUp() {
   return useMutation({
     mutationFn: (input: SignUpInput) =>
       api<User>("/auth/signup", { method: "POST", body: input }),
-    onSuccess: (user) => qc.setQueryData(ME_KEY, user),
+    onSuccess: (user) => {
+      qc.setQueryData(ME_KEY, user);
+      announceAuth("signed-in");
+    },
   });
 }
 
@@ -59,6 +66,7 @@ export function useSignOut() {
     onSuccess: () => {
       qc.clear();
       qc.setQueryData(ME_KEY, null);
+      announceAuth("signed-out"); // other open tabs go to sign in too
     },
   });
 }
