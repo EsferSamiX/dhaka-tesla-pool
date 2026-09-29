@@ -255,6 +255,7 @@ dhaka-tesla-pool/
 │       ├── hooks/           TanStack Query hooks per resource
 │       └── lib/             API client, types, cross-tab auth sync
 ├── docs/                    architecture, assumptions, fare model, ERD, API, images
+├── e2e/                     Playwright browser tests for the main flows
 ├── docker-compose.yml       postgres + migrate/seed + backend + frontend
 └── .github/workflows/ci.yml lint, types, tests, build, Docker build
 ```
@@ -356,6 +357,23 @@ cd ../frontend
 npm run lint && npm run typecheck && npm run build
 ```
 
+**Browser tests** (Playwright) drive the real UI against a running stack. Each test signs up its own people, so any database works, and cleans up its trips:
+
+```bash
+docker compose up -d --build --wait
+cd e2e
+npm ci
+npx playwright install chromium   # or: PW_CHANNEL=chrome to use an installed Chrome
+npx playwright test               # E2E_BASE_URL=… to test another deployment
+```
+
+| Browser test | Checks |
+|---|---|
+| `trip.spec.ts` | A full Tesla from Tejgaon: accept from the driver screen, two riders auto-join, seat boxes on all screens, 30% fares, drop-offs nearest first (the others are disabled), the first rider's "trip ended" card, Finish trip, End trip |
+| `driver.spec.ts` | A 4th rider is listed as "Your seats are full" with Accept disabled; no new riders once boarding; going offline and online with a slow network never flashes an error |
+| `passenger.spec.ts` | Alone / with 2 / with 3 prices; cancelling your own ride returns to booking without a "trip ended" card; a broken ride link shows "Ride not found" |
+| `auth.spec.ts` | Show/hide password, wrong password, sign-in redirect, signing out in one tab signs out the others |
+
 **67 unit and 59 e2e tests.** The e2e tests run through the real HTTP stack and database, and clean up after themselves. The behaviours the brief asks for:
 
 | Required behaviour | Where it's tested |
@@ -367,7 +385,7 @@ npm run lint && npm run typecheck && npm run build
 | Users can't modify another user's ride | `rides.e2e-spec.ts`: another passenger gets 403 on view and cancel, and the ride is unchanged; role checks on passenger and driver routes |
 | Cancellation rules hold | `rides.e2e-spec.ts`: cancel frees the seat, empties the pool, refuses after the start; `driver.e2e-spec.ts`: driver cancel sends riders back to waiting |
 
-CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs all of this against a PostgreSQL service on every pull request, and also builds both Docker images.
+CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs all of this on every pull request: the API tests against a PostgreSQL service, and the browser tests against the full Docker Compose stack.
 
 ## API overview
 

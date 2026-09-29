@@ -119,7 +119,7 @@ jobs:
           NEXT_TELEMETRY_DISABLED: 1
 
   docker:
-    name: Docker images
+    name: Docker stack and browser tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -129,3 +129,36 @@ jobs:
 
       - name: Build images
         run: docker compose build
+
+      # The whole stack as a reviewer would run it: database, migrations and
+      # seed, API, and UI. --wait returns once the health checks pass.
+      - name: Start the stack
+        run: docker compose up -d --wait
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install browser test dependencies
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Browser tests
+        working-directory: e2e
+        run: npx playwright test
+
+      - name: Keep the test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+          retention-days: 7
+
+      - name: Show container logs
+        if: failure()
+        run: docker compose logs --tail=200
