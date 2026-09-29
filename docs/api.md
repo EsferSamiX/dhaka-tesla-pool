@@ -308,10 +308,10 @@ The ride object plus its timeline.
 
 ### `GET /api/driver/requests` — *Driver*
 
-Waiting requests (`REQUESTED`), oldest first.
+Waiting requests (`REQUESTED`), oldest first, so the longest wait is seen first. This is not the drop-off order; that is planned nearest-first once riders are in the pool.
 
-- **No active pool:** all waiting requests.
-- **Open pool (`MATCHED`):** only requests that pass the matching rules for that pool.
+- **No active pool:** all waiting requests; `blockedReason` is `null`.
+- **Open pool (`MATCHED`):** requests from the pool's pickup zone. Those that can't join have a `blockedReason`: `"Your seats are full; you can't add more"`, `"Needs 2 seats; only 1 free"`, or `"The detour would be too long for your passengers"`. Accepting one returns `409`.
 - **Pool already arrived or started:** an empty list.
 
 **Response `200`**
@@ -326,7 +326,8 @@ Waiting requests (`REQUESTED`), oldest first.
     "seats": 1,
     "distanceKm": 4,
     "estimatedFarePaisa": 9000,
-    "waitingSince": "2026-09-28T02:43:00Z"
+    "waitingSince": "2026-09-28T02:43:00Z",
+    "blockedReason": null
   }
 ]
 ```
