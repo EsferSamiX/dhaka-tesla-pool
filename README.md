@@ -457,7 +457,6 @@ Every error looks the same: `{ "statusCode", "error", "message", "requestId" }`.
 - Ratings, a TeslaPay wallet and receipts.
 - Push updates (SSE or WebSockets) on a long-running server.
 - Per-zone matching workers and idempotency keys for requests at scale.
-- Playwright end-to-end tests for the two main user flows.
 
 ## Git workflow
 
