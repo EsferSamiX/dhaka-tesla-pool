@@ -8,7 +8,7 @@
 
 A ride-pooling MVP: passengers heading the same way share one electric three-wheeler (a "Tesla"), and everyone on board pays less.
 
-[**Live app**](https://dhaka-tesla-pool-wheat.vercel.app) · [API docs](https://dhaka-tesla-pool-backend.vercel.app/api/docs) · [Architecture](docs/architecture.md) · [ERD](docs/erd.md)
+[**Live app**](https://dhaka-tesla-pool-wheat.vercel.app) · [**Demo video**](https://drive.google.com/file/d/1A2XfGu7rc3Rxl2PCY5M7Rk5GHTbw2pTG/view?usp=sharing) · [Presentation](https://drive.google.com/file/d/1ewULzsUbCdC6Ld_ixve4RoGorPUE_7Gy/view?usp=sharing) · [API docs](https://dhaka-tesla-pool-backend.vercel.app/api/docs) · [Architecture](docs/architecture.md) · [ERD](docs/erd.md)
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs)
 ![NestJS](https://img.shields.io/badge/NestJS-12-E0234E?logo=nestjs)
@@ -23,6 +23,8 @@ A ride-pooling MVP: passengers heading the same way share one electric three-whe
 
 ## Contents
 
+- [Demo video](#demo-video)
+- [Presentation](#presentation)
 - [The problem](#the-problem)
 - [Features](#features)
 - [Screenshots](#screenshots)
@@ -39,6 +41,21 @@ A ride-pooling MVP: passengers heading the same way share one electric three-whe
 - [Known limitations](#known-limitations)
 - [Next improvements](#next-improvements)
 - [Git workflow](#git-workflow)
+- [AI usage](#ai-usage)
+
+---
+
+## Demo video
+
+📹 **Watch the walkthrough video:** https://drive.google.com/file/d/1A2XfGu7rc3Rxl2PCY5M7Rk5GHTbw2pTG/view?usp=sharing
+
+[![Watch the demo video](https://img.shields.io/badge/▶_Watch_the_demo_video-Google_Drive-4285F4?logo=googledrive&logoColor=white&style=for-the-badge)](https://drive.google.com/file/d/1A2XfGu7rc3Rxl2PCY5M7Rk5GHTbw2pTG/view?usp=sharing)
+
+---
+
+## Presentation
+
+📑 **Slides used in the video (architecture, database, lifecycle, race-condition handling):** https://drive.google.com/file/d/1ewULzsUbCdC6Ld_ixve4RoGorPUE_7Gy/view?usp=sharing
 
 ---
 
@@ -448,3 +465,15 @@ Every error looks the same: `{ "statusCode", "error", "message", "requestId" }`.
 - **`pre-release`:** cut from `master` once the MVP was integrated; used for deployment fixes, docs and final checks.
 - **`release/v1.0.0`:** cut from `pre-release`; the version shown in the video and the deployment.
 - **Commits** follow `<type>(<scope>): <description>`, for example `feat(pool): enforce Bullet's seat capacity` or `fix(rides): lock pool then ride when cancelling`.
+
+## AI usage
+
+**Tool:** Anthropic's **Claude** (through Claude Code) as a pair programmer throughout: turning the brief into assumptions and a plan, reviewing the architecture and schema, writing and refactoring code and tests, debugging (CI failures, the Vercel deployment), and drafting documentation. I checked its answers against the official NestJS, Prisma, Next.js, Vercel and Neon documentation.
+
+Everything was reviewed, run and tested before it was committed, and I can explain and change any part of it.
+
+**One accepted suggestion: lock the pool row, and back it with a constraint.** For the last-seat race, Claude suggested reserving seats inside a transaction that first runs `SELECT … FOR UPDATE` on the pool row, plus a `CHECK (occupied_seats <= capacity)` constraint as a second line of defence. It's simpler than optimistic locking or `SERIALIZABLE` (no retry logic in every caller), and contention is tiny with 3 seats per pool. I kept it and added tests that race up to 8 passengers for one seat.
+
+**One changed suggestion: the pool discount.** The first fare model gave every pooled rider a flat 20% off. I changed it to a tiered discount for everyone on board: 20% with two passengers, 30% with three. A full Tesla should reward riders for filling it, and the driver still earns more per trip (৳168 for three against ৳132 for two in the story). The fare model, tests and UI were updated to match.
+
+I also removed the one-click "sign in as Nusrat/Jashim" demo buttons from the login page. The brief doesn't ask for them and they bypass the real sign-in flow, so the demo credentials are listed in this README instead.
