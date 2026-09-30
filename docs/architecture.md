@@ -297,8 +297,6 @@ COMMIT;
 | Idempotency keys on ride requests | Safe client retries over unreliable mobile networks. |
 | Atomic seat counters in Redis, reconciled to PostgreSQL | Only if database lock contention becomes measurable. |
 
-Detailed scaling reasoning is in [scaling.md](scaling.md).
-
 ---
 
 ## 9. Error Handling
